@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.revetsec.fixture</groupId>
+	<artifactId>claims-fixture</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<name>Claims fixture</name>
+	<description>Seeded violation: a battle-tested library.</description>
+	<licenses>
+		<license>
+			<name>Control: nested names are not scanned, even when certified</name>
+		</license>
+	</licenses>
+</project>

@@ -1,0 +1,9 @@
+RevetSec Servlet Adapter (jakarta)
+Copyright 2026 Revetware LLC
+
+Licensed under the Apache License, Version 2.0. See LICENSE.
+
+This adapter has no bundled third-party code. It is used with RevetSec core
+(com.revetsec:revetsec), which the application declares, and the Jakarta Servlet API
+(jakarta.servlet:jakarta.servlet-api), which the servlet container supplies. Each
+carries its own notices.

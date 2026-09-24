@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # revetsec-servlet-jakarta has no runtime dependencies of its own: RevetSec core and the Servlet API
+  # are provided, and the rest is build and test tooling. Every entry waits 7 days after a release
+  # before proposing it (cooldown), so a compromised or yanked release is less likely to reach a PR.
+  - package-ecosystem: maven
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    ignore:
+      # Core is built from the commit pinned in .github/workflows/ci.yml (REVETSEC_CORE_SHA), not
+      # resolved from a repository, and scripts/verify-core-drift.py ties revetsec.version to it.
+      - dependency-name: "com.revetsec:revetsec"
+      # jakarta.servlet-api 6.1.0 (Servlet 6.1) is the adapter's deliberate compile floor: the README
+      # states it, and the pom's Javadoc offline link and src/main/javadoc/links/ are pinned to it.
+      # Move it by hand, together with those. Patch releases are still proposed; review the README
+      # and the links with them.
+      - dependency-name: "jakarta.servlet:jakarta.servlet-api"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
