@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Fail when this adapter drifts from a RevetSec core checkout (plan 10.1, "Drift control").
+"""Fail when this adapter drifts from a Revetsec core checkout (plan 10.1, "Drift control").
 
 Checks:
 
@@ -300,7 +300,7 @@ def main(arguments=None):
         return 1
 
     commit = options.expected_commit or "an unpinned working tree"
-    print(f"No drift from RevetSec core {':'.join(CORE_COORDINATES)}:{core_version} at {commit}.")
+    print(f"No drift from Revetsec core {':'.join(CORE_COORDINATES)}:{core_version} at {commit}.")
     print(f"Checked: core identity, {', '.join(VERBATIM_FILES)}, {CLAIMS_LINT_TEST} and its fixture, "
           f"and the Javadoc link indexes.")
     return 0

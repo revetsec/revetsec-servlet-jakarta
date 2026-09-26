@@ -72,7 +72,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * Shared machinery for the adapter's source-inventory contract tests, adapted from RevetSec core's.
+ * Shared machinery for the adapter's source-inventory contract tests, adapted from Revetsec core's.
  * <p>
  * Every checker is pure JDK ({@code javax.tools}, {@code com.sun.source}) plus JUnit assertions, and takes the
  * root it inspects as a parameter so {@link ContractMetaTests} can point it at seeded violations.
@@ -620,7 +620,7 @@ final class ContractSupport {
 	 * Parses and attributes every Java file under {@code sourceRoot} with javac ({@code --release 17}, no annotation
 	 * processing) and applies {@code function} to the result. Compilation errors fail the calling test.
 	 * <p>
-	 * The class path holds the provided-scope JARs only: the annotations, RevetSec core and the framework API. When
+	 * The class path holds the provided-scope JARs only: the annotations, Revetsec core and the framework API. When
 	 * {@code stubRoot} is not {@code null} it becomes javac's source path, so fixture trees can stand in for core
 	 * types that do not exist yet; stub sources are attributed on demand but are not analyzed compilation units.
 	 */
@@ -697,7 +697,7 @@ final class ContractSupport {
 
 	/**
 	 * Class path for attributing adapter sources: the JARs that hold the JSpecify, jsr305 and Error Prone
-	 * annotations, plus those of {@link AdapterContract#DEPENDENCY_ANCHOR_CLASSES} (RevetSec core and the framework
+	 * annotations, plus those of {@link AdapterContract#DEPENDENCY_ANCHOR_CLASSES} (Revetsec core and the framework
 	 * API). Each is located from a class it contains, so this works under any Surefire class-path mode.
 	 */
 	private static String analysisClasspath() {

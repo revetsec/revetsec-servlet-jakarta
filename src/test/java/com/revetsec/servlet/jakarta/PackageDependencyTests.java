@@ -37,15 +37,15 @@ import java.util.Set;
 import java.util.TreeSet;
 
 /**
- * Package rules for an adapter (plan 6, 7.10), adapted from RevetSec core's {@code PackageDependencyTests}.
+ * Package rules for an adapter (plan 6, 7.10), adapted from Revetsec core's {@code PackageDependencyTests}.
  * <ul>
  *   <li>The adapter has exactly one package, {@link AdapterContract#ADAPTER_PACKAGE}, and it has a
  *   {@code package-info.java} annotated {@code @NullMarked}.</li>
- *   <li>The adapter uses only RevetSec core's public API: no import of, and no resolved reference to, anything in
+ *   <li>The adapter uses only Revetsec core's public API: no import of, and no resolved reference to, anything in
  *   {@code com.revetsec.internal} or its subpackages. Fully qualified names and static imports count too.</li>
  * </ul>
  * Which framework the adapter may use needs no test here: the enforcer allow-list in {@code pom.xml} puts only
- * RevetSec core, this adapter's framework API and the annotation JARs on the main compile class path, so code that
+ * Revetsec core, this adapter's framework API and the annotation JARs on the main compile class path, so code that
  * names another framework does not compile.
  *
  * @author <a href="https://www.revetkn.com">Mark Allen</a>
@@ -62,7 +62,7 @@ final class PackageDependencyTests {
 
 	/**
 	 * Checks the Java sources under {@code sourceRoot} and returns one message per violation (empty if none).
-	 * {@code stubRoot}, if not {@code null}, holds stand-ins for RevetSec core types.
+	 * {@code stubRoot}, if not {@code null}, holds stand-ins for Revetsec core types.
 	 */
 	static List<String> findViolations(Path sourceRoot, @Nullable Path stubRoot) throws IOException {
 		if (ContractSupport.javaSources(sourceRoot).isEmpty())
@@ -87,7 +87,7 @@ final class PackageDependencyTests {
 		for (String packageName : declaredPackages) {
 			if (!packageName.equals(AdapterContract.ADAPTER_PACKAGE))
 				violations.add(packageName + ": adapters have exactly one package, " + AdapterContract.ADAPTER_PACKAGE
-						+ "; move this code there, or into RevetSec core");
+						+ "; move this code there, or into Revetsec core");
 			if (!packagesWithPackageInfo.contains(packageName)) {
 				violations.add(packageName + ": package has no package-info.java (R20)");
 			} else {
@@ -106,7 +106,7 @@ final class PackageDependencyTests {
 	}
 
 	/**
-	 * Reports each line of {@code compilationUnit} that imports or refers to anything in RevetSec core's internal
+	 * Reports each line of {@code compilationUnit} that imports or refers to anything in Revetsec core's internal
 	 * packages.
 	 */
 	private static void findCoreInternalReferences(CompilationUnitTree compilationUnit, SourceAnalysis analysis,
@@ -145,7 +145,7 @@ final class PackageDependencyTests {
 
 			private void report(Tree node, String target) {
 				violations.add(analysis.location(compilationUnit, node) + ": uses " + target + "; adapters use only "
-						+ "RevetSec core's public API, and com.revetsec.internal is not API (plan 6, 7.10)");
+						+ "Revetsec core's public API, and com.revetsec.internal is not API (plan 6, 7.10)");
 			}
 		}.scan(compilationUnit, null);
 	}

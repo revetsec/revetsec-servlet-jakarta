@@ -1,6 +1,6 @@
 # Claims allowlist fixture. Format: <relative-path>|<exact substring>|<evidence-or-reason>
 
-README.md|RevetSec has not been independently audited.|required disclosure (plan 19)
+README.md|Revetsec has not been independently audited.|required disclosure (plan 19)
 README.md|This sentence does not appear anywhere.|seeded stale entry: substring not found
 README.md|the conformance suite|seeded stale entry: covers no banned term
 docs/missing.md|anything|seeded stale entry: file does not exist

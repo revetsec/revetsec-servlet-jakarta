@@ -85,7 +85,7 @@ final class ContractMetaTests {
 						+ "of*, create* or new* (R1, NAMING_CONVENTIONS.md)",
 				"${package}.InheritingFixture#parse(java.lang.String) (inherited from "
 						+ "${package}.AbstractBaseFixture): public static method returns a verified type; only "
-						+ "RevetSec core's validators may create one (R17)",
+						+ "Revetsec core's validators may create one (R17)",
 				"${package}.InheritingFixture#undated() (inherited from ${package}.AbstractBaseFixture): Javadoc has "
 						+ "no @since tag (D28)",
 				"${package}.InheritingFixture#undocumented(java.lang.String) (inherited from "
@@ -137,11 +137,11 @@ final class ContractMetaTests {
 				"${package}.UndocumentedFixture: public concrete types are final, or sealed with only final or sealed "
 						+ "permitted subclasses (R1)",
 				"${package}.VerifiedTypeFactoryFixture#forge(): public static method returns a verified type; only "
-						+ "RevetSec core's validators may create one (R17)",
+						+ "Revetsec core's validators may create one (R17)",
 				"${package}.VerifiedTypeFactoryFixture#jwtFor(java.lang.String): public static method returns a "
-						+ "verified type; only RevetSec core's validators may create one (R17)",
+						+ "verified type; only Revetsec core's validators may create one (R17)",
 				"${package}.VerifiedTypeFactoryFixture#jwtsFor(java.lang.String): public static method returns a "
-						+ "verified type; only RevetSec core's validators may create one (R17)")
+						+ "verified type; only Revetsec core's validators may create one (R17)")
 				.map(violation -> violation.replace("${package}", PACKAGE))
 				.toList(), violations);
 		Assertions.assertTrue(violations.stream().noneMatch(violation -> violation.contains("packagePrivateJwtFor")),
@@ -153,7 +153,7 @@ final class ContractMetaTests {
 		List<String> violations = PackageDependencyTests.findViolations(fixture("package-dependencies"), coreStubs());
 
 		assertReported(violations, PACKAGE_PATH + "/ImportsCoreInternalFixture.java:19: uses "
-				+ "com.revetsec.internal.jose.InternalJoseFixture; adapters use only RevetSec core's public API");
+				+ "com.revetsec.internal.jose.InternalJoseFixture; adapters use only Revetsec core's public API");
 		assertReported(violations, PACKAGE_PATH + "/ImportsCoreInternalFixture.java:29: uses com.revetsec.internal.jose;");
 		assertReported(violations, PACKAGE_PATH + "/StaticImportCoreInternalFixture.java:19: uses "
 				+ "com.revetsec.internal.jose.InternalJoseFixture.NAME;");

@@ -36,7 +36,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Claims discipline (plan 19, 14.6): RevetSec's documents never call it certified, compliant, conformant, audited,
+ * Claims discipline (plan 19, 14.6): Revetsec's documents never call it certified, compliant, conformant, audited,
  * production-ready, FIPS and so on, unless an allowlist entry pairs the exact wording with its evidence.
  * <p>
  * Scanned text:

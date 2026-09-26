@@ -19,7 +19,7 @@ package com.revetsec.servlet.jakarta;
 import com.revetsec.oauth.AuthorizationResponseFixture;
 
 /**
- * Control: adapters may use RevetSec core's public API.
+ * Control: adapters may use Revetsec core's public API.
  */
 final class UsesCorePublicApiFixture {
 	private UsesCorePublicApiFixture() {

@@ -209,7 +209,7 @@ class CoreDriftTests(unittest.TestCase):
             status = VERIFIER.main(["--core-directory", str(self.core), "--adapter-directory", str(self.adapter),
                                     "--expected-commit", COMMIT])
         self.assertEqual(0, status)
-        self.assertIn("No drift from RevetSec core com.revetsec:revetsec:1.0.0-SNAPSHOT at " + COMMIT, output.getvalue())
+        self.assertIn("No drift from Revetsec core com.revetsec:revetsec:1.0.0-SNAPSHOT at " + COMMIT, output.getvalue())
 
 
 class WorkflowTests(unittest.TestCase):

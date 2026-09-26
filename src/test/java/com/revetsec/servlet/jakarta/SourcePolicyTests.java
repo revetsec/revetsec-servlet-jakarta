@@ -55,7 +55,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Source-level policy guards for properties functional tests cannot see, adapted from RevetSec core's (plan 12.3
+ * Source-level policy guards for properties functional tests cannot see, adapted from Revetsec core's (plan 12.3
  * M0, R4, R18, 14.6; Pyranid precedent). Two mechanisms check {@code src/main/java}:
  * <ul>
  *   <li>regular expressions, each rule a list of alternatives, matched over each whole file after Unicode escapes
@@ -228,7 +228,7 @@ final class SourcePolicyTests {
 			new Rule(BACKGROUND_WORK, List.of("\\bScheduledExecutorService\\b"),
 					"adapters create no threads, executors, timers or cleaners and use no shared pool (R4)"),
 			new Rule(DEFAULT_HTTP_CLIENT, List.of("\\bHttpClient\\s*(?:\\.|::)\\s*(?:newHttpClient|newBuilder)\\b"),
-					"adapters create no HttpClient; RevetSec core's single default client serves them (D36)"),
+					"adapters create no HttpClient; Revetsec core's single default client serves them (D36)"),
 			new Rule("insecure-random", List.of(
 					"\\bjava\\s*\\.\\s*util\\s*\\.\\s*Random\\b",
 					"\\bjava\\s*\\.\\s*util\\s*\\.\\s*SplittableRandom\\b",
@@ -241,7 +241,7 @@ final class SourcePolicyTests {
 					"(?<![\\w.$])RandomGeneratorFactory\\b",
 					"\\bMath\\s*(?:\\.|::)\\s*random\\b",
 					"\\bStrictMath\\s*(?:\\.|::)\\s*random\\b"),
-					"randomness comes from RevetSec core's SecureRandom entropy seam (R6)"),
+					"randomness comes from Revetsec core's SecureRandom entropy seam (R6)"),
 			new Rule("console-output", List.of("\\bSystem\\s*\\.\\s*out\\b", "\\bSystem\\s*\\.\\s*err\\b"),
 					"adapters never write to System.out or System.err (R16)"),
 			new Rule(PRINT_STACK_TRACE, List.of(), "stack traces may carry secrets and must not be printed (R9, R16)"),
@@ -254,7 +254,7 @@ final class SourcePolicyTests {
 					"\\bXMLInputFactory\\b",
 					"\\bXPathFactory\\b",
 					"\\bXMLReaderFactory\\b"),
-					"adapters never parse or transform XML; only RevetSec core's hardened internal.xml does"),
+					"adapters never parse or transform XML; only Revetsec core's hardened internal.xml does"),
 			new Rule("xpath", List.of("\\bXPath\\w*", "\\bjavax\\s*\\.\\s*xml\\s*\\.\\s*xpath\\b"),
 					"SAML processing walks the verified DOM by namespace in core and never uses XPath (14.6)"),
 			new Rule("non-namespace-dom-lookup", List.of("\\bgetElementsByTagName\\b"),
@@ -278,7 +278,7 @@ final class SourcePolicyTests {
 					"adapters never mutate JVM-global settings (R4)"),
 			new Rule(MULTI_ARGUMENT_URI, List.of(),
 					"multi-argument URI constructors re-encode components and let parameters inject; leave URI "
-							+ "building to RevetSec core, or use a single-argument constructor (14.6)"),
+							+ "building to Revetsec core, or use a single-argument constructor (14.6)"),
 			new Rule(PACKAGE_PATH_MISMATCH, List.of(), "a file must sit in the directory of its declared package"),
 			new Rule(MARKDOWN_DOC_COMMENT, List.of(),
 					"use /** */ Javadoc; JDK 17/21 tooling ignores /// Markdown doc comments, so R20 and @since would "
@@ -357,7 +357,7 @@ final class SourcePolicyTests {
 	@Test
 	void repositoryNeverReferencesTheCompromisedSamlTestIdp() throws IOException {
 		ContractSupport.assertNoViolations("Banned hostname found (plan 14.4: treat that public SAML test IdP as "
-				+ "compromised; use RevetSec core's scripted IdP instead)",
+				+ "compromised; use Revetsec core's scripted IdP instead)",
 				findBannedHostnames(ContractSupport.repositoryRoot()));
 	}
 

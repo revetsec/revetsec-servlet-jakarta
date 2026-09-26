@@ -1,4 +1,4 @@
-# Claims allowlist for ClaimsLintTests (a copy of RevetSec core's test).
+# Claims allowlist for ClaimsLintTests (a copy of Revetsec core's test).
 #
 # Format: one entry per line, <relative-path>|<exact substring>|<evidence-or-reason>
 # Lines starting with a hash are comments. Paths are relative to the repository root.
@@ -7,5 +7,5 @@
 # entry for that file. Every entry must still match its file, so stale entries fail the build.
 # Each entry states the evidence for its wording, or why the wording is not a claim.
 
-README.md|RevetSec has not been independently audited.|Required disclosure; states the absence of an audit and makes no claim.
-SECURITY.md|RevetSec has not been independently audited.|Required disclosure (SECURITY.md is RevetSec core's, copied verbatim); states the absence of an audit and makes no claim.
+README.md|Revetsec has not been independently audited.|Required disclosure; states the absence of an audit and makes no claim.
+SECURITY.md|Revetsec has not been independently audited.|Required disclosure (SECURITY.md is Revetsec core's, copied verbatim); states the absence of an audit and makes no claim.

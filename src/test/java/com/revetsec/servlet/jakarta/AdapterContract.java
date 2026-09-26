@@ -19,7 +19,7 @@ package com.revetsec.servlet.jakarta;
 import java.util.List;
 
 /**
- * The facts that differ between RevetSec's adapter repositories.
+ * The facts that differ between Revetsec's adapter repositories.
  * <p>
  * The other contract-test sources are the same in {@code revetsec-soklet}, {@code revetsec-servlet-jakarta} and
  * {@code revetsec-servlet-javax} apart from their package declaration, so a change to one can be copied to the
@@ -36,11 +36,11 @@ final class AdapterContract {
 	/**
 	 * The first line of {@code NOTICE} and of the JAR's {@code META-INF/NOTICE}; also the POM {@code <name>}.
 	 */
-	static final String PRODUCT_NAME = "RevetSec Servlet Adapter (jakarta)";
+	static final String PRODUCT_NAME = "Revetsec Servlet Adapter (jakarta)";
 
 	/**
 	 * Binary names of classes whose JARs the contract tests put on javac's class path, next to the annotation JARs,
-	 * so adapter sources can be attributed: RevetSec core and the framework API. Core is located through its root
+	 * so adapter sources can be attributed: Revetsec core and the framework API. Core is located through its root
 	 * {@code package-info}, which exists at every milestone.
 	 */
 	static final List<String> DEPENDENCY_ANCHOR_CLASSES = List.of(

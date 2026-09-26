@@ -1,13 +1,13 @@
 # Public API Naming Conventions
 
-This document defines naming rules for RevetSec public APIs, including factories, builders, properties, and callback parameters.
+This document defines naming rules for Revetsec public APIs, including factories, builders, properties, and callback parameters.
 It exists to keep future naming decisions consistent and avoid repeated debate.
 
-It is adapted from Soklet's naming conventions. RevetSec core and each RevetSec adapter repository carry identical copies.
+It is adapted from Soklet's naming conventions. Revetsec core and each Revetsec adapter repository carry identical copies.
 
 ## Scope
 
-- Applies to public API design in RevetSec core and its adapters.
+- Applies to public API design in Revetsec core and its adapters.
 - Does not require renaming internal APIs, protocol fields, or the retained exceptions below.
 
 ## Rules
@@ -31,6 +31,11 @@ It is adapted from Soklet's naming conventions. RevetSec core and each RevetSec 
   `ClientCredentialsTokenSource`, and `JwtAccessTokenValidator`.
 - **Callbacks:** multi-hook callback interfaces are `*Observer` types with `willX`/`didX`/`didFailToX` hooks.
   `*Listener` is reserved for single-method sinks.
+  Every hook is a `default void` method that does nothing, so an application overrides only the hooks it needs.
+  Hook parameters are enums, boxed numbers, `Boolean`, `Duration`, `Instant`, `URI`, `String` or Revetsec exceptions, never `Optional`.
+  Each observer interface also has a static `disabledInstance()`, and no other static method and no field.
+- **Exceptions:** applications catch Revetsec exceptions but do not create them, so exception classes have no public constructors and no public static methods.
+  The rare factory an application needs is a reviewed exception that the contract tests list.
 - **Secret-emitting methods:** a method that returns a secret says so by name, such as `getValue()`, `toSealedForm()`,
   `toCompactSerialization()`, or `getAuthorizationHeaderValue()`. `toString()` never renders a secret.
 - **Adapter helpers:** stateless helper classes use verb or noun methods, such as `authorizationResponseFor(request)`.
@@ -44,11 +49,16 @@ not Java API names, and keep the spelling their specifications give.
 
 Validation exceptions keep a concise nested `Reason` enum, read with `getReason()`.
 
+JSON value builders add one member per call: `JsonObject.Builder.put(name, value)` and `putNull(name)` each add a
+single member, and a name that is already present throws `IllegalArgumentException` instead of replacing the earlier
+value. They are the only per-item adders. There is no `JsonArray` builder: `JsonArray.fromElements(List)` takes the
+complete list.
+
 Servlet-mandated and Soklet-mandated method names in the adapters remain unchanged.
 
 ## Examples
 
-The names below come from RevetSec's planned API. They illustrate the rules and may change before the types exist.
+The names below come from Revetsec's planned API. They illustrate the rules and may change before the types exist.
 
 ```java
 // Builder entrypoints
@@ -75,4 +85,10 @@ SamlSecurityPolicy samlSecurityPolicy = SamlSecurityPolicy.fromDefaults();
 
 // Per-request variants
 ScimServiceProvider tenantScim = scim.copy().baseUri(tenantScimBaseUri).finish();
+
+// JSON value builders (retained exception: one member per put, and a repeated name throws)
+JsonObject claims = JsonObject.builder()
+	.put("sub", "248289761001")
+	.put("email_verified", true)
+	.build();
 ```

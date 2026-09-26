@@ -17,7 +17,7 @@
 package com.revetsec.oauth;
 
 /**
- * Stand-in for a public RevetSec core type. Adapters may use core's public API.
+ * Stand-in for a public Revetsec core type. Adapters may use core's public API.
  */
 public final class AuthorizationResponseFixture {
 	private AuthorizationResponseFixture() {

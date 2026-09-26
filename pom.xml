@@ -6,8 +6,8 @@
 	<artifactId>revetsec-servlet-jakarta</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
-	<name>RevetSec Servlet Adapter (jakarta)</name>
-	<description>RevetSec helpers for jakarta.servlet applications: they pass HttpServletRequests to RevetSec core as raw input and write RevetSec results to HttpServletResponses.</description>
+	<name>Revetsec Servlet Adapter (jakarta)</name>
+	<description>Revetsec helpers for jakarta.servlet applications: they pass HttpServletRequests to Revetsec core as raw input and write Revetsec results to HttpServletResponses.</description>
 	<url>https://github.com/revetsec/revetsec-servlet-jakarta</url>
 
 	<licenses>
@@ -52,14 +52,14 @@
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<project.build.outputTimestamp>2026-09-01T00:00:00Z</project.build.outputTimestamp>
 
-		<!-- Adapter 1.x requires RevetSec core 1.0.0 or later. Until core 1.0.0 is released, CI builds core from
+		<!-- Adapter 1.x requires Revetsec core 1.0.0 or later. Until core 1.0.0 is released, CI builds core from
 		     the commit pinned in .github/workflows/ci.yml, and scripts/verify-core-drift.py checks that the pinned
 		     core's version equals this property. Never override it on the command line. -->
 		<revetsec.version>1.0.0-SNAPSHOT</revetsec.version>
 		<!-- The Jakarta Servlet API (Servlet 6.1, plan 10.1). The servlet container supplies it at runtime. -->
 		<jakarta.servlet.version>6.1.0</jakarta.servlet.version>
 
-		<!-- Build plugins (the same versions as RevetSec core) -->
+		<!-- Build plugins (the same versions as Revetsec core) -->
 		<maven.enforcer.plugin.version>3.6.3</maven.enforcer.plugin.version>
 		<maven.compiler.plugin.version>3.16.0</maven.compiler.plugin.version>
 		<maven.surefire.plugin.version>3.6.0</maven.surefire.plugin.version>
@@ -83,7 +83,7 @@
 		<!-- Test scope -->
 		<junit.jupiter.version>6.1.3</junit.jupiter.version>
 
-		<!-- The javadoc JAR is built by a separately pinned JDK (REVETSEC_JAVADOC_HOME), as in RevetSec core and
+		<!-- The javadoc JAR is built by a separately pinned JDK (REVETSEC_JAVADOC_HOME), as in Revetsec core and
 		     Soklet. Every build passes -Dmaven.javadoc.skip=true until this adapter has its first public type. -->
 		<revetsec.javadoc.executable>${env.REVETSEC_JAVADOC_HOME}/bin/javadoc</revetsec.javadoc.executable>
 		<revetsec.spotbugs.excludeFilterFile>${project.basedir}/config/spotbugs-exclude.xml</revetsec.spotbugs.excludeFilterFile>
@@ -111,7 +111,7 @@
 								</requireJavaVersion>
 								<dependencyConvergence/>
 								<!-- Allow-list (plan 10.1): no compile, runtime or system dependencies at all, and the
-								     only provided dependencies are RevetSec core, the jakarta.servlet API and the
+								     only provided dependencies are Revetsec core, the jakarta.servlet API and the
 								     annotation JARs. Test scope is not restricted; it never reaches the published POM's
 								     consumers. -->
 								<bannedDependencies>
@@ -129,7 +129,7 @@
 										<include>com.google.code.findbugs:jsr305:*:jar:provided</include>
 										<include>com.google.errorprone:error_prone_annotations:*:jar:provided</include>
 									</includes>
-									<message>RevetSec adapters must not declare runtime dependencies. The only provided dependencies are RevetSec core, the jakarta.servlet API and the JSpecify, jsr305 and Error Prone annotations; everything else is test scope.</message>
+									<message>Revetsec adapters must not declare runtime dependencies. The only provided dependencies are Revetsec core, the jakarta.servlet API and the JSpecify, jsr305 and Error Prone annotations; everything else is test scope.</message>
 								</bannedDependencies>
 							</rules>
 						</configuration>
@@ -147,7 +147,7 @@
 						<arg>-parameters</arg>
 						<arg>-Xlint:all</arg>
 					</compilerArgs>
-					<!-- No annotation processing in the default build, as in RevetSec core. The static-analysis
+					<!-- No annotation processing in the default build, as in Revetsec core. The static-analysis
 					     profile enables it only for Error Prone and NullAway. -->
 					<proc>none</proc>
 					<showDeprecation>true</showDeprecation>
@@ -160,7 +160,7 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>${maven.surefire.plugin.version}</version>
 				<!-- Only junit-jupiter-api is declared. Surefire detects it and provisions the matching JUnit 6
-				     engine and platform launcher itself (RevetSec core and Soklet precedent). -->
+				     engine and platform launcher itself (Revetsec core and Soklet precedent). -->
 				<configuration>
 					<includes>
 						<include>**/*Tests.java</include>
@@ -207,7 +207,7 @@
 				<configuration>
 					<!-- Documentation uses a separately pinned JDK; compilation still targets 17. Required from this
 					     adapter's first public type; until then every build passes -Dmaven.javadoc.skip=true.
-					     With the first public type, also link RevetSec core's Javadoc from the pinned core build, as
+					     With the first public type, also link Revetsec core's Javadoc from the pinned core build, as
 					     Soklet's adapters do with soklet.javadoc.location. -->
 					<javadocExecutable>${revetsec.javadoc.executable}</javadocExecutable>
 					<!-- Keep published package URLs stable despite the JAR's automatic module name. -->
@@ -261,7 +261,7 @@
 	</build>
 
 	<dependencies>
-		<!-- Provided: the application declares RevetSec core, and its servlet container supplies the Servlet API
+		<!-- Provided: the application declares Revetsec core, and its servlet container supplies the Servlet API
 		     (README, "Installation"). -->
 		<dependency>
 			<groupId>com.revetsec</groupId>
@@ -309,7 +309,7 @@
 	<profiles>
 		<!--
 			Publishing (plan 10.5). Nothing is published without the owner's explicit authorization, `mvn deploy` is
-			never run from a developer machine, and this adapter is published only together with or after RevetSec
+			never run from a developer machine, and this adapter is published only together with or after Revetsec
 			core. The Central Portal deployment is left for a manual publish in the Portal UI.
 		-->
 		<profile>
@@ -345,7 +345,7 @@
 		</profile>
 
 		<!--
-			Static-analysis gate, as in RevetSec core. Run on JDK 21 (Error Prone requires JDK 21+ to run); the
+			Static-analysis gate, as in Revetsec core. Run on JDK 21 (Error Prone requires JDK 21+ to run); the
 			release-17 target is unchanged. NullAway runs at ERROR with com.revetsec as the annotated package, over
 			main and test code.
 
@@ -400,7 +400,7 @@
 		</profile>
 
 		<!--
-			SpotBugs + FindSecBugs gate, JDK 21, as in RevetSec core. Every entry in the exclude filter needs a
+			SpotBugs + FindSecBugs gate, JDK 21, as in Revetsec core. Every entry in the exclude filter needs a
 			written reason.
 
 			  JAVA_HOME=<jdk21> mvn -B -ntp -Pspotbugs -Dmaven.javadoc.skip=true verify

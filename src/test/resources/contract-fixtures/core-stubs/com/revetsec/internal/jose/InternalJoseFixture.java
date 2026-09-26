@@ -17,7 +17,7 @@
 package com.revetsec.internal.jose;
 
 /**
- * Stand-in for a RevetSec core internal type. Internal types are public by necessity but are not API.
+ * Stand-in for a Revetsec core internal type. Internal types are public by necessity but are not API.
  */
 public final class InternalJoseFixture {
 	public static final String NAME = "internal";

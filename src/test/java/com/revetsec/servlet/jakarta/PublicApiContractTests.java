@@ -51,7 +51,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
- * Source-inventory contracts for the adapter's exported API (plan R1, R2, R17, R20, 14.6), adapted from RevetSec
+ * Source-inventory contracts for the adapter's exported API (plan R1, R2, R17, R20, 14.6), adapted from Revetsec
  * core's, which were adapted from Soklet's.
  * <p>
  * For every exported type (public top-level types in the adapter package, and their public or protected nested
@@ -73,7 +73,7 @@ import java.util.stream.Collectors;
  *   ({@code Optional}'s type argument must be {@code @NonNull}).</li>
  * </ul>
  * No public static method of an accessible adapter type, declared or inherited, returns a type that mentions one of
- * RevetSec core's verified identity types (R17), as a subtype, a type argument or a type-variable bound included:
+ * Revetsec core's verified identity types (R17), as a subtype, a type argument or a type-variable bound included:
  * only core's validators create them, and an adapter only passes raw input to core.
  * <p>
  * Entries in {@link #R1_EXCEPTIONS} are binary names ({@code Outer$Nested}), the form every violation message
@@ -83,7 +83,7 @@ import java.util.stream.Collectors;
  */
 final class PublicApiContractTests {
 	/**
-	 * RevetSec core's verified identity types (plan R17, INV-G5). They exist only after every check passed, so they
+	 * Revetsec core's verified identity types (plan R17, INV-G5). They exist only after every check passed, so they
 	 * are created only by core's validators.
 	 */
 	static final Set<String> VERIFIED_TYPES = Set.of(
@@ -118,7 +118,7 @@ final class PublicApiContractTests {
 
 	/**
 	 * Checks the Java sources under {@code sourceRoot} and returns one message per violation (empty if none).
-	 * {@code stubRoot}, if not {@code null}, holds stand-ins for RevetSec core types (see
+	 * {@code stubRoot}, if not {@code null}, holds stand-ins for Revetsec core types (see
 	 * {@link ContractSupport#analyze(Path, Path, java.util.function.Function)}).
 	 */
 	static List<String> findViolations(Path sourceRoot, @Nullable Path stubRoot) throws IOException {
@@ -375,7 +375,7 @@ final class PublicApiContractTests {
 				if (mentionsVerifiedType(method.getReturnType(), verifiedTypes, analysis, new HashSet<>()))
 					violations.add(typeName + "#" + analysis.describe(method) + (inherited ? " (inherited from "
 							+ analysis.getElements().getBinaryName(declaringType) + ")" : "")
-							+ ": public static method returns a verified type; only RevetSec core's validators may "
+							+ ": public static method returns a verified type; only Revetsec core's validators may "
 							+ "create one (R17)");
 			}
 		}

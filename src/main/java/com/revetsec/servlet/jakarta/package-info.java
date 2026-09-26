@@ -15,13 +15,13 @@
  */
 
 /**
- * RevetSec helpers for applications on the {@code jakarta.servlet} API.
+ * Revetsec helpers for applications on the {@code jakarta.servlet} API.
  * <p>
- * The helpers are static classes. They pass an {@code HttpServletRequest} to RevetSec core as raw input (query
- * string, form body or parameters, header values) and write RevetSec results to an {@code HttpServletResponse}.
- * They contain no protocol logic: every validation decision is made by RevetSec core, through its public API only.
+ * The helpers are static classes. They pass an {@code HttpServletRequest} to Revetsec core as raw input (query
+ * string, form body or parameters, header values) and write Revetsec results to an {@code HttpServletResponse}.
+ * They contain no protocol logic: every validation decision is made by Revetsec core, through its public API only.
  * <p>
- * RevetSec core and the Servlet API are {@code provided} dependencies of this adapter: an application declares
+ * Revetsec core and the Servlet API are {@code provided} dependencies of this adapter: an application declares
  * core, and its servlet container supplies the Servlet API. The {@code revetsec-servlet-javax} adapter has the same
  * helpers for the legacy {@code javax.servlet} API.
  *

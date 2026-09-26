@@ -2,7 +2,7 @@
 
 Seeded violation: this library is production-ready.
 
-Covered by the allowlist: RevetSec has not been independently
+Covered by the allowlist: Revetsec has not been independently
 audited.
 
 Seeded violation across a line break: it is battle
@@ -14,7 +14,7 @@ Seeded violation: FIPS.
 
 Seeded violations in a list item that wraps onto indented continuation lines:
 
-- RevetSec is production
+- Revetsec is production
   ready, and it is battle-
   tested.
 

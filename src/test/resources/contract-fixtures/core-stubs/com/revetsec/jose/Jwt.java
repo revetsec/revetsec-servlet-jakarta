@@ -17,7 +17,7 @@
 package com.revetsec.jose;
 
 /**
- * Stand-in for RevetSec core's verified JWT type (R17), which does not exist before M2. Only core's validators
+ * Stand-in for Revetsec core's verified JWT type (R17), which does not exist before M2. Only core's validators
  * create one, so it has no accessible constructor.
  */
 public final class Jwt {

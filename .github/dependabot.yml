@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # revetsec-servlet-jakarta has no runtime dependencies of its own: RevetSec core and the Servlet API
+  # revetsec-servlet-jakarta has no runtime dependencies of its own: Revetsec core and the Servlet API
   # are provided, and the rest is build and test tooling. Every entry waits 7 days after a release
   # before proposing it (cooldown), so a compromised or yanked release is less likely to reach a PR.
   - package-ecosystem: maven

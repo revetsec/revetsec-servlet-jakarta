@@ -1,6 +1,6 @@
 name: CI
 
-# revetsec-servlet-jakarta CI (plan §10.1, §10.3). RevetSec core is not on Maven Central yet, so every job that
+# revetsec-servlet-jakarta CI (plan §10.1, §10.3). Revetsec core is not on Maven Central yet, so every job that
 # needs it checks out revetsec/revetsec at the pinned commit in REVETSEC_CORE_SHA, installs it into the
 # runner's local Maven repository with -DskipTests -Dmaven.javadoc.skip=true, and builds this adapter
 # against it (the verify-soklet-candidate pattern of Soklet's adapters). The pin moves only by pull request.
@@ -22,7 +22,7 @@ env:
   # first core commit is pushed, replace them with that commit's SHA. Until then every job fails at its
   # "Validate the core pin" step, on purpose.
   # ==================================================================================================
-  REVETSEC_CORE_SHA: '540740e2121a2e9129329e33d6a09730b0662b4c'
+  REVETSEC_CORE_SHA: 'b36a112b5d3acd0a8929f333e58a377cb2fa0299'
 
 permissions:
   contents: read
@@ -53,18 +53,18 @@ jobs:
       - name: Validate the core pin
         run: |
           if [[ "$REVETSEC_CORE_SHA" =~ ^0{40}$ ]]; then
-            echo "::error title=RevetSec core pin not set::REVETSEC_CORE_SHA in .github/workflows/ci.yml is still the 40-zero placeholder. Replace it with the full SHA of a pushed revetsec/revetsec commit (the first core commit or a later one)."
+            echo "::error title=Revetsec core pin not set::REVETSEC_CORE_SHA in .github/workflows/ci.yml is still the 40-zero placeholder. Replace it with the full SHA of a pushed revetsec/revetsec commit (the first core commit or a later one)."
             exit 1
           fi
           if [[ ! "$REVETSEC_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error title=Invalid RevetSec core pin::REVETSEC_CORE_SHA must be a full 40-character lowercase commit SHA, not a branch, tag or abbreviated SHA."
+            echo "::error title=Invalid Revetsec core pin::REVETSEC_CORE_SHA must be a full 40-character lowercase commit SHA, not a branch, tag or abbreviated SHA."
             exit 1
           fi
           echo "Building against revetsec/revetsec@${REVETSEC_CORE_SHA}"
 
       # Full history: every branch of revetsec/revetsec is fetched, so the next step can see which ones
       # contain the pin. The pinned commit is still what is checked out.
-      - name: Check out RevetSec core at the pin
+      - name: Check out Revetsec core at the pin
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: revetsec/revetsec
@@ -135,15 +135,15 @@ jobs:
       - name: Validate the core pin
         run: |
           if [[ "$REVETSEC_CORE_SHA" =~ ^0{40}$ ]]; then
-            echo "::error title=RevetSec core pin not set::REVETSEC_CORE_SHA in .github/workflows/ci.yml is still the 40-zero placeholder. Replace it with the full SHA of a pushed revetsec/revetsec commit (the first core commit or a later one)."
+            echo "::error title=Revetsec core pin not set::REVETSEC_CORE_SHA in .github/workflows/ci.yml is still the 40-zero placeholder. Replace it with the full SHA of a pushed revetsec/revetsec commit (the first core commit or a later one)."
             exit 1
           fi
           if [[ ! "$REVETSEC_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error title=Invalid RevetSec core pin::REVETSEC_CORE_SHA must be a full 40-character lowercase commit SHA, not a branch, tag or abbreviated SHA."
+            echo "::error title=Invalid Revetsec core pin::REVETSEC_CORE_SHA must be a full 40-character lowercase commit SHA, not a branch, tag or abbreviated SHA."
             exit 1
           fi
 
-      - name: Check out RevetSec core at the pin
+      - name: Check out Revetsec core at the pin
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: revetsec/revetsec
@@ -158,11 +158,11 @@ jobs:
           java-version: ${{ matrix.jdk }}
           cache: maven
 
-      # The Maven cache may hold a RevetSec core from an earlier run; build only against the pinned one.
-      - name: Remove cached RevetSec artifacts
+      # The Maven cache may hold a Revetsec core from an earlier run; build only against the pinned one.
+      - name: Remove cached Revetsec artifacts
         run: rm -rf ~/.m2/repository/com/revetsec
 
-      - name: Install RevetSec core at the pin
+      - name: Install Revetsec core at the pin
         run: mvn -B -ntp -f core/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
 
       - name: Verify
@@ -192,15 +192,15 @@ jobs:
       - name: Validate the core pin
         run: |
           if [[ "$REVETSEC_CORE_SHA" =~ ^0{40}$ ]]; then
-            echo "::error title=RevetSec core pin not set::REVETSEC_CORE_SHA in .github/workflows/ci.yml is still the 40-zero placeholder. Replace it with the full SHA of a pushed revetsec/revetsec commit (the first core commit or a later one)."
+            echo "::error title=Revetsec core pin not set::REVETSEC_CORE_SHA in .github/workflows/ci.yml is still the 40-zero placeholder. Replace it with the full SHA of a pushed revetsec/revetsec commit (the first core commit or a later one)."
             exit 1
           fi
           if [[ ! "$REVETSEC_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "::error title=Invalid RevetSec core pin::REVETSEC_CORE_SHA must be a full 40-character lowercase commit SHA, not a branch, tag or abbreviated SHA."
+            echo "::error title=Invalid Revetsec core pin::REVETSEC_CORE_SHA must be a full 40-character lowercase commit SHA, not a branch, tag or abbreviated SHA."
             exit 1
           fi
 
-      - name: Check out RevetSec core at the pin
+      - name: Check out Revetsec core at the pin
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: revetsec/revetsec
@@ -215,10 +215,10 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Remove cached RevetSec artifacts
+      - name: Remove cached Revetsec artifacts
         run: rm -rf ~/.m2/repository/com/revetsec
 
-      - name: Install RevetSec core at the pin
+      - name: Install Revetsec core at the pin
         run: mvn -B -ntp -f core/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
 
       - name: Error Prone, NullAway, SpotBugs and FindSecBugs
