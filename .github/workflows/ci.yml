@@ -22,7 +22,7 @@ env:
   # first core commit is pushed, replace them with that commit's SHA. Until then every job fails at its
   # "Validate the core pin" step, on purpose.
   # ==================================================================================================
-  REVETSEC_CORE_SHA: 'b36a112b5d3acd0a8929f333e58a377cb2fa0299'
+  REVETSEC_CORE_SHA: 'ae6780e96ef42725f9081a71f4ba5059281fcdf3'
 
 permissions:
   contents: read
