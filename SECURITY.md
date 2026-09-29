@@ -43,7 +43,7 @@ Revetsec has not been independently audited. Its security evidence is meant to b
 
 ## Sealing Keys
 
-`StateSealer` seals short strings into values that travel through the browser, such as a cookie, and opens them again. As the protocol areas land, Revetsec will also seal its own state with the sealer you give it, such as a pending OAuth, OpenID Connect or SAML sign-in and an OpenID Connect session reference, under separate type labels. Whoever holds a sealing key can read every value sealed under it and can create values that every sealer holding it accepts, of every type. Treat a sealing key like a signing key.
+`StateSealer` seals short strings into values that travel through the browser, such as a cookie, and opens them again. The OAuth client seals its pending authorization under a separate type label. Later protocol areas will use further labels for OpenID Connect or SAML sign-in and an OpenID Connect session reference. Whoever holds a sealing key can read every value sealed under it and can create values that every sealer holding it accepts, of every type. Treat a sealing key like a signing key.
 
 - **One key per application.** Do not share a key between applications, or between environments such as staging and production.
 - **32 random bytes.** A key is exactly 32 bytes from a cryptographically secure random source, supplied as 44 characters of standard Base64, for example the output of `openssl rand -base64 32`. Keep keys out of source control and load them from a secret store. Revetsec rejects a key whose 32 bytes are all the same, as a placeholder, but it cannot tell a guessable key from a random one.
@@ -70,6 +70,16 @@ AES-GCM is not key-committing: someone who knows two keys can build one cipherte
 
 Version 1 of the sealed format has none, because neither case applies. Every sealing key is a random secret that only the application holds, and a sealer opens a value with exactly one key, the one its key ID names. So a value that opens under one of your keys had to be sealed with that key. The only party that could build a value opening under two of your keys already holds both, and could seal anything it wanted under either. The format starts with a version byte, which leaves room for a later version with a commitment block.
 
+## OAuth client boundary
+
+`OAuthClient` returns raw access and refresh tokens, not an authenticated identity. Applications must not treat a token response, a token's unverified claims, or the authorization callback as proof of a user identity. The [OAuth client guide](https://github.com/revetsec/revetsec/blob/main/docs/oauth-client.md) describes callback routing, cookies, a shared pending store and application return destinations.
+
+- A callback route passes its fixed registered URI from trusted routing configuration. The client compares that URI with the authenticated pending record before any authorization-server request. An application must not rebuild it from `Host`, forwarding headers or callback data.
+- The pending source binds state and the PKCE verifier to the browser. A custom store must remove a record atomically. The in-memory store does so within one process. A sealed cookie can be used by two concurrent callbacks: each may attempt to exchange the same code. Use a durable shared atomic store when client-side at-most-once exchange is required across requests, nodes or restarts. Clear the browser cookie on every callback even when completion fails.
+- Authenticated pending application data is returned after code completion. A `returnTo` value is still subject to an application allowlist before it is saved and again before it causes a redirect. Allowing an arbitrary external URL makes the application an open redirector.
+- A present RFC 9207 callback `iss` must match the initiating issuer exactly. If the authorization server advertised that parameter at begin, an absent one is rejected. Multiple authorization servers without mandatory `iss` need distinct registered callback routes. Metadata issuer and endpoint checks are exact, and changed token or authorization endpoints fail before code exchange.
+- Metadata and token requests have no automatic redirects, bounded bodies and deadlines. A configured URI policy checks endpoint text, but cannot prevent DNS rebinding by itself; use network egress controls when issuer or metadata URLs are tenant-supplied. Authorization-code exchange, refresh and revocation are sent once, without automatic retry after uncertain outcomes. An injected HTTP client must refuse redirects.
+
 ## JSON Web Key Sets
 
 `JwtValidator` verifies JWTs with keys from a `JsonWebKeySource`: a `StaticJsonWebKeySource` holds keys the application already has, and a `RemoteJsonWebKeySource` fetches an identity provider's JSON Web Key Set from its URL and caches it. The [threat model](https://github.com/revetsec/revetsec/blob/main/docs/threat-model.md) describes the fetch rules in full, and [supported algorithms](https://github.com/revetsec/revetsec/blob/main/docs/supported-algorithms.md) the key rules.
@@ -88,7 +98,7 @@ Revetsec's exceptions are `Serializable`, as every Java `Throwable` is, but Reve
 
 ## Security Invariants
 
-Revetsec's security invariants are published in this section as the code that upholds them lands, each with a stable ID. The [threat model](https://github.com/revetsec/revetsec/blob/main/docs/threat-model.md) maps each one to the tests and build checks that enforce it, and states its scope; a test checks that every invariant listed here is in that map. So far Revetsec holds its foundations and the verification of signed JWTs against JSON Web Key Sets, and these invariants apply to them:
+Revetsec's security invariants are published in this section as the code that upholds them lands, each with a stable ID. The [threat model](https://github.com/revetsec/revetsec/blob/main/docs/threat-model.md) maps each one to the tests and build checks that enforce it, and states its scope; a test checks that every invariant listed here is in that map. The M3 OAuth rows are still under milestone verification; the threat model marks their current scope.
 
 - **INV-G1** Every public parse or validate entry point returns a validated value or throws a documented `RevetsecException`, and no other `Throwable` escapes, whatever the input.
 - **INV-G2** Size is checked before decoding, at every stage.
@@ -112,5 +122,14 @@ Revetsec's security invariants are published in this section as the code that up
 - **INV-J8** A JWT's `typ` is checked per profile, as a media type compared ASCII case-insensitively.
 - **INV-J9** A JSON Web Key Set is bound to one URI and holds no issuer. An unknown key refreshes it at most once per cooldown, for all concurrent callers; a removed key stops verifying; stale keys are served for a bounded time; and a JWT without `kid` needs exactly one compatible key.
 - **INV-C6** A JSON Web Key with an `issuer` member verifies only JWTs whose `iss` equals it. The one exception is Microsoft Entra ID's exact `{tenantid}` template, which matches only the token's own tenant.
+- **INV-O1** OAuth pending state binds the code-flow parameters and initiating browser through a sealed source or an atomic store; the latter consumes once. The M3 scope and OIDC-only fields still owed are listed in the threat model.
+- **INV-O2** Every authorization-code flow sends a fresh PKCE S256 challenge and never sends `plain`.
+- **INV-O3** A callback issuer matches the initiating issuer exactly; a required issuer cannot be absent, and endpoint changes fail before code exchange.
+- **INV-O4** An authorization error surfaces only after local state, browser-binding, route and issuer validation.
+- **INV-O5** Token endpoint requests and responses have bounded URI, redirect, media, size and time rules and strict required fields.
+- **INV-O6** An omitted token-response scope is interpreted using that request's scopes, never the client's defaults.
+- **INV-O7** Basic credentials form-encode the ID and secret before Base64 by default, and secrets never enter request URLs.
+- **INV-O8** The OAuth client yields raw credentials, never a verified identity.
+- **INV-O9** Metadata issuer matches the configured issuer exactly, and each requestable endpoint passes the outbound URI policy.
 - **INV-L1** The JAR has zero compile or runtime dependencies, and needs no JDK modules other than `java.base`, `java.net.http`, `java.xml`, `java.xml.crypto` and `java.logging`.
 - **INV-L2** No `ObjectInputStream`, reflective deserialization or scripting.
