@@ -16,6 +16,8 @@
 
 package com.revetsec.servlet.jakarta;
 
+import org.jspecify.annotations.NonNull;
+
 import com.revetsec.servlet.jakarta.ContractSupport.SourceAnalysis;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -130,18 +132,18 @@ final class SourcePolicyTests {
 		private final List<Pattern> patterns;
 		private final String reason;
 
-		Rule(String id, List<String> alternatives, String reason) {
+		Rule(@NonNull String id, @NonNull List<@NonNull String> alternatives, @NonNull String reason) {
 			this.id = id;
 			this.alternatives = List.copyOf(alternatives);
 			this.patterns = alternatives.stream().map(regex -> Pattern.compile(regex, Pattern.MULTILINE)).toList();
 			this.reason = reason;
 		}
 
-		String getId() {
+		@NonNull String getId() {
 			return this.id;
 		}
 
-		String alternativeId(int index) {
+		@NonNull String alternativeId(int index) {
 			return this.id + " /" + this.alternatives.get(index) + "/";
 		}
 	}
@@ -159,11 +161,11 @@ final class SourcePolicyTests {
 		private final int minimumParameters;
 		private final int maximumParameters;
 
-		MemberBan(String ruleId, String owner, String names) {
+		MemberBan(@NonNull String ruleId, @NonNull String owner, @NonNull String names) {
 			this(ruleId, owner, names, 0, Integer.MAX_VALUE);
 		}
 
-		MemberBan(String ruleId, String owner, String names, int minimumParameters, int maximumParameters) {
+		MemberBan(@NonNull String ruleId, @NonNull String owner, @NonNull String names, int minimumParameters, int maximumParameters) {
 			this.ruleId = ruleId;
 			this.owner = owner;
 			this.names = Pattern.compile(names);
@@ -171,7 +173,7 @@ final class SourcePolicyTests {
 			this.maximumParameters = maximumParameters;
 		}
 
-		String alternativeId() {
+		@NonNull String alternativeId() {
 			return this.ruleId + " " + this.owner + "#/" + this.names.pattern() + "/ with " + this.minimumParameters
 					+ (this.maximumParameters == Integer.MAX_VALUE ? " or more" : " to " + this.maximumParameters)
 					+ " parameters";
@@ -185,12 +187,12 @@ final class SourcePolicyTests {
 		private final String ruleId;
 		private final String owner;
 
-		SupertypeBan(String ruleId, String owner) {
+		SupertypeBan(@NonNull String ruleId, @NonNull String owner) {
 			this.ruleId = ruleId;
 			this.owner = owner;
 		}
 
-		String alternativeId() {
+		@NonNull String alternativeId() {
 			return this.ruleId + " class extending or implementing " + this.owner;
 		}
 	}
@@ -204,7 +206,7 @@ final class SourcePolicyTests {
 		private final int line;
 		private final String alternativeId;
 
-		Detection(String ruleId, String path, int line, String alternativeId) {
+		Detection(@NonNull String ruleId, @NonNull String path, int line, @NonNull String alternativeId) {
 			this.ruleId = ruleId;
 			this.path = path;
 			this.line = line;
@@ -214,11 +216,11 @@ final class SourcePolicyTests {
 		/**
 		 * {@code <rule> <path>:<line>}, the prefix of the violation message.
 		 */
-		String getKey() {
+		@NonNull String getKey() {
 			return this.ruleId + " " + this.path + ":" + this.line;
 		}
 
-		String getAlternativeId() {
+		@NonNull String getAlternativeId() {
 			return this.alternativeId;
 		}
 	}
@@ -402,7 +404,7 @@ final class SourcePolicyTests {
 	 * Applies every source-policy check to the Java files under {@code sourceRoot}. Each message is
 	 * {@code <rule> <path>:<line>: <reason>}, one per rule and line, sorted by path, line and rule.
 	 */
-	static List<String> findViolations(Path sourceRoot) throws IOException {
+	static @NonNull List<@NonNull String> findViolations(@NonNull Path sourceRoot) throws IOException {
 		Map<String, Detection> byKey = new LinkedHashMap<>();
 		for (Detection detection : findDetections(sourceRoot))
 			byKey.putIfAbsent(detection.getKey(), detection);
@@ -414,7 +416,7 @@ final class SourcePolicyTests {
 				.toList();
 	}
 
-	private static Rule rule(String ruleId) {
+	private static @NonNull Rule rule(@NonNull String ruleId) {
 		@Nullable Rule rule = RULES_BY_ID.get(ruleId);
 		if (rule == null)
 			throw new IllegalStateException("Unknown source-policy rule " + ruleId);
@@ -424,7 +426,7 @@ final class SourcePolicyTests {
 	/**
 	 * Every alternative ID a detection can carry: each regular expression, each table entry, and the special checks.
 	 */
-	static List<String> alternativeIds() {
+	static @NonNull List<@NonNull String> alternativeIds() {
 		List<String> alternativeIds = new ArrayList<>();
 		for (Rule rule : MAIN_SOURCE_RULES)
 			for (int index = 0; index < rule.alternatives.size(); ++index)
@@ -440,7 +442,7 @@ final class SourcePolicyTests {
 	 * Every raw finding under {@code sourceRoot}, with the alternative that produced it. A line can be found by more
 	 * than one alternative; {@link #findViolations(Path)} reports it once.
 	 */
-	static List<Detection> findDetections(Path sourceRoot) throws IOException {
+	static @NonNull List<@NonNull Detection> findDetections(@NonNull Path sourceRoot) throws IOException {
 		List<Path> sources = ContractSupport.javaSources(sourceRoot);
 		if (sources.isEmpty())
 			return List.of();
@@ -479,7 +481,7 @@ final class SourcePolicyTests {
 	 * The javac-attributed checks: {@code synchronized}, {@link #MEMBER_BANS}, {@link #SUPERTYPE_BANS} and the
 	 * package location of each file.
 	 */
-	private static List<Detection> findAttributedDetections(SourceAnalysis analysis) {
+	private static @NonNull List<@NonNull Detection> findAttributedDetections(@NonNull SourceAnalysis analysis) {
 		List<Detection> detections = new ArrayList<>();
 		Map<MemberBan, TypeElement> memberBanOwners = new LinkedHashMap<>();
 		for (MemberBan ban : MEMBER_BANS)
@@ -505,7 +507,7 @@ final class SourcePolicyTests {
 
 			new TreePathScanner<Void, Void>() {
 				@Override
-				public @Nullable Void visitClass(ClassTree node, Void unused) {
+				public @Nullable Void visitClass(@NonNull ClassTree node, @Nullable Void unused) {
 					@Nullable Element element = analysis.getTrees().getElement(getCurrentPath());
 					if (element instanceof TypeElement type && type.getNestingKind() != NestingKind.ANONYMOUS)
 						for (Map.Entry<SupertypeBan, TypeElement> ban : supertypeBanOwners.entrySet())
@@ -515,20 +517,20 @@ final class SourcePolicyTests {
 				}
 
 				@Override
-				public @Nullable Void visitMethod(MethodTree node, Void unused) {
+				public @Nullable Void visitMethod(@NonNull MethodTree node, @Nullable Void unused) {
 					if (node.getModifiers().getFlags().contains(Modifier.SYNCHRONIZED))
 						detect(SYNCHRONIZED, node, SYNCHRONIZED_METHOD_ALTERNATIVE);
 					return super.visitMethod(node, null);
 				}
 
 				@Override
-				public @Nullable Void visitSynchronized(SynchronizedTree node, Void unused) {
+				public @Nullable Void visitSynchronized(@NonNull SynchronizedTree node, @Nullable Void unused) {
 					detect(SYNCHRONIZED, node, SYNCHRONIZED_STATEMENT_ALTERNATIVE);
 					return super.visitSynchronized(node, null);
 				}
 
 				@Override
-				public @Nullable Void visitMethodInvocation(MethodInvocationTree node, Void unused) {
+				public @Nullable Void visitMethodInvocation(@NonNull MethodInvocationTree node, @Nullable Void unused) {
 					// javac's generated default constructors call super() without source; the class check covers them.
 					if (isWritten(node)) {
 						ExpressionTree methodSelect = node.getMethodSelect();
@@ -543,7 +545,7 @@ final class SourcePolicyTests {
 				}
 
 				@Override
-				public @Nullable Void visitNewClass(NewClassTree node, Void unused) {
+				public @Nullable Void visitNewClass(@NonNull NewClassTree node, @Nullable Void unused) {
 					if (isWritten(node))
 						checkMember(analysis.getTrees().getElement(getCurrentPath()),
 								positions.getStartPosition(compilationUnit, node));
@@ -551,14 +553,14 @@ final class SourcePolicyTests {
 				}
 
 				@Override
-				public @Nullable Void visitMemberReference(MemberReferenceTree node, Void unused) {
+				public @Nullable Void visitMemberReference(@NonNull MemberReferenceTree node, @Nullable Void unused) {
 					if (isWritten(node))
 						checkMember(analysis.getTrees().getElement(getCurrentPath()),
 								positions.getStartPosition(compilationUnit, node));
 					return super.visitMemberReference(node, null);
 				}
 
-				private boolean isWritten(Tree node) {
+				private boolean isWritten(@NonNull Tree node) {
 					return positions.getEndPosition(compilationUnit, node) >= 0;
 				}
 
@@ -577,11 +579,11 @@ final class SourcePolicyTests {
 					}
 				}
 
-				private void detect(String ruleId, Tree node, String alternativeId) {
+				private void detect(@NonNull String ruleId, @NonNull Tree node, @NonNull String alternativeId) {
 					detect(ruleId, positions.getStartPosition(compilationUnit, node), alternativeId);
 				}
 
-				private void detect(String ruleId, long position, String alternativeId) {
+				private void detect(@NonNull String ruleId, long position, @NonNull String alternativeId) {
 					detections.add(new Detection(ruleId, relativePath, analysis.lineNumber(compilationUnit, position),
 							alternativeId));
 				}
@@ -591,7 +593,7 @@ final class SourcePolicyTests {
 		return detections;
 	}
 
-	private static TypeElement ownerType(SourceAnalysis analysis, String qualifiedName) {
+	private static @NonNull TypeElement ownerType(@NonNull SourceAnalysis analysis, @NonNull String qualifiedName) {
 		@Nullable TypeElement owner = analysis.getElements().getTypeElement(qualifiedName);
 		if (owner == null)
 			throw new IllegalStateException("A source-policy ban names " + qualifiedName
@@ -606,7 +608,7 @@ final class SourcePolicyTests {
 	 * finds ASCII inside DER or other binary data, and again with NUL bytes removed, which finds ASCII text encoded
 	 * as UTF-16; they report the path alone.
 	 */
-	static List<String> findBannedHostnames(Path repositoryRoot) throws IOException {
+	static @NonNull List<@NonNull String> findBannedHostnames(@NonNull Path repositoryRoot) throws IOException {
 		List<String> violations = new ArrayList<>();
 		for (Path file : ContractSupport.repositoryFiles(repositoryRoot)) {
 			String relativePath = ContractSupport.relativePath(repositoryRoot, file);
@@ -634,7 +636,7 @@ final class SourcePolicyTests {
 		return List.copyOf(violations);
 	}
 
-	private static String withoutNulBytes(byte[] bytes) {
+	private static @NonNull String withoutNulBytes(byte @NonNull [] bytes) {
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream(bytes.length);
 		for (byte value : bytes)
 			if (value != 0)
@@ -642,7 +644,7 @@ final class SourcePolicyTests {
 		return new String(outputStream.toByteArray(), StandardCharsets.ISO_8859_1);
 	}
 
-	private static byte[] decodeBase64(String body) {
+	private static byte @NonNull [] decodeBase64(@NonNull String body) {
 		try {
 			return Base64.getDecoder().decode(body.replaceAll("\\s+", ""));
 		} catch (IllegalArgumentException e) {
@@ -650,7 +652,7 @@ final class SourcePolicyTests {
 		}
 	}
 
-	private static boolean containsBannedHostname(byte[] bytes) {
+	private static boolean containsBannedHostname(byte @NonNull [] bytes) {
 		return BANNED_HOSTNAME.matcher(new String(bytes, StandardCharsets.ISO_8859_1)).find()
 				|| BANNED_HOSTNAME.matcher(withoutNulBytes(bytes)).find();
 	}
@@ -658,7 +660,7 @@ final class SourcePolicyTests {
 	/**
 	 * Returns the Java files under {@code sourceRoot} that do not begin with {@link ContractSupport#LICENSE_HEADER}.
 	 */
-	static List<String> findMissingLicenseHeaders(Path sourceRoot) throws IOException {
+	static @NonNull List<@NonNull String> findMissingLicenseHeaders(@NonNull Path sourceRoot) throws IOException {
 		List<String> violations = new ArrayList<>();
 		for (Path file : ContractSupport.javaSources(sourceRoot)) {
 			String content = Files.readString(file, StandardCharsets.UTF_8).replace("\r\n", "\n");
@@ -672,7 +674,7 @@ final class SourcePolicyTests {
 	 * Returns the Python and shell scripts in the repository (see {@link ContractSupport#repositoryFiles(Path)})
 	 * that do not begin, after an optional {@code #!} line, with {@link #SCRIPT_LICENSE_HEADER}.
 	 */
-	static List<String> findScriptsWithoutLicenseHeader(Path repositoryRoot) throws IOException {
+	static @NonNull List<@NonNull String> findScriptsWithoutLicenseHeader(@NonNull Path repositoryRoot) throws IOException {
 		List<String> violations = new ArrayList<>();
 		for (Path file : ContractSupport.repositoryFiles(repositoryRoot)) {
 			String name = ContractSupport.fileName(file);
@@ -690,7 +692,7 @@ final class SourcePolicyTests {
 	/**
 	 * Visible for {@link ContractMetaTests}: the alternative IDs grouped by violation key.
 	 */
-	static Map<String, List<String>> alternativeIdsByKey(List<Detection> detections) {
+	static @NonNull Map<@NonNull String, @NonNull List<@NonNull String>> alternativeIdsByKey(@NonNull List<@NonNull Detection> detections) {
 		return detections.stream().collect(Collectors.groupingBy(Detection::getKey, LinkedHashMap::new,
 				Collectors.mapping(Detection::getAlternativeId,
 						Collectors.collectingAndThen(Collectors.toList(), ids -> ids.stream().distinct().sorted()
@@ -700,7 +702,7 @@ final class SourcePolicyTests {
 	/**
 	 * Visible for {@link ContractMetaTests}: rule IDs in declaration order.
 	 */
-	static List<String> ruleIds() {
+	static @NonNull List<@NonNull String> ruleIds() {
 		return MAIN_SOURCE_RULES.stream().map(Rule::getId).toList();
 	}
 }

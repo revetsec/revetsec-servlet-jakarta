@@ -16,6 +16,8 @@
 
 package com.revetsec.servlet.jakarta;
 
+import org.jspecify.annotations.NonNull;
+
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 
@@ -114,7 +116,7 @@ final class ClaimsLintTests {
 			"battle-tested", "battle" + JOINER + "tested",
 			"more secure than", "more\\s+secure\\s+than");
 
-	private static Map<String, Pattern> bannedTerms(String... termsAndRegexes) {
+	private static @NonNull Map<@NonNull String, @NonNull Pattern> bannedTerms(@NonNull String @NonNull ... termsAndRegexes) {
 		Map<String, Pattern> terms = new LinkedHashMap<>();
 		for (int index = 0; index < termsAndRegexes.length; index += 2)
 			terms.put(termsAndRegexes[index], Pattern.compile(WORD_START + termsAndRegexes[index + 1] + WORD_END,
@@ -132,7 +134,7 @@ final class ClaimsLintTests {
 	/**
 	 * Lints the repository at {@code repositoryRoot} against its {@value #ALLOWLIST_FILE}.
 	 */
-	static List<String> findViolations(Path repositoryRoot) throws IOException {
+	static @NonNull List<@NonNull String> findViolations(@NonNull Path repositoryRoot) throws IOException {
 		return findViolations(repositoryRoot, Set.of());
 	}
 
@@ -140,7 +142,7 @@ final class ClaimsLintTests {
 	 * Lints the repository at {@code repositoryRoot}, skipping files whose relative path starts with one of
 	 * {@code excludedPrefixes}.
 	 */
-	static List<String> findViolations(Path repositoryRoot, Set<String> excludedPrefixes) throws IOException {
+	static @NonNull List<@NonNull String> findViolations(@NonNull Path repositoryRoot, @NonNull Set<@NonNull String> excludedPrefixes) throws IOException {
 		List<String> violations = new ArrayList<>();
 		Map<String, String> scannedText = new LinkedHashMap<>();
 
@@ -205,7 +207,7 @@ final class ClaimsLintTests {
 	 * Returns the text of {@code file} to lint, with unscanned characters blanked so offsets and lines still match
 	 * the file, or {@code null} if the file is not linted.
 	 */
-	private static @Nullable String scannedText(String relativePath, Path file) throws IOException {
+	private static @Nullable String scannedText(@NonNull String relativePath, @NonNull Path file) throws IOException {
 		String lowerCasePath = relativePath.toLowerCase(Locale.ROOT);
 		boolean html = lowerCasePath.endsWith(".html") || lowerCasePath.endsWith(".htm");
 		if (lowerCasePath.endsWith(".md"))
@@ -229,7 +231,7 @@ final class ClaimsLintTests {
 	 * space or a hyphen padded with spaces to the entity's length, so offsets and lines still match the file. Other
 	 * entities are left alone.
 	 */
-	private static String withEntitiesResolved(String text) {
+	private static @NonNull String withEntitiesResolved(@NonNull String text) {
 		Matcher matcher = HTML_ENTITY.matcher(text);
 		if (!matcher.find())
 			return text;
@@ -260,7 +262,7 @@ final class ClaimsLintTests {
 	 * The project's name and description: the first {@code <name>} and {@code <description>} elements, which in a
 	 * Maven POM precede the nested license and developer names.
 	 */
-	private static String pomText(String pom) {
+	private static @NonNull String pomText(@NonNull String pom) {
 		char[] masked = new char[pom.length()];
 		for (int index = 0; index < masked.length; ++index)
 			masked[index] = pom.charAt(index) == '\n' ? '\n' : ' ';
@@ -273,7 +275,7 @@ final class ClaimsLintTests {
 		return new String(masked);
 	}
 
-	private static List<Match> bannedTermMatches(String text) {
+	private static @NonNull List<@NonNull Match> bannedTermMatches(@NonNull String text) {
 		List<Match> matches = new ArrayList<>();
 		for (Map.Entry<String, Pattern> term : BANNED_TERMS.entrySet()) {
 			Matcher matcher = term.getValue().matcher(text);
@@ -284,13 +286,13 @@ final class ClaimsLintTests {
 		return matches;
 	}
 
-	private static String context(String text, Match match) {
+	private static @NonNull String context(@NonNull String text, @NonNull Match match) {
 		int start = Math.max(0, match.start - 40);
 		int end = Math.min(text.length(), match.end + 40);
 		return WHITESPACE.matcher(text.substring(start, end)).replaceAll(" ").trim();
 	}
 
-	private static List<AllowlistEntry> readAllowlist(Path allowlistFile, List<String> violations) throws IOException {
+	private static @NonNull List<@NonNull AllowlistEntry> readAllowlist(@NonNull Path allowlistFile, @NonNull List<@NonNull String> violations) throws IOException {
 		if (!Files.isRegularFile(allowlistFile))
 			return List.of();
 
@@ -331,7 +333,7 @@ final class ClaimsLintTests {
 	 * {@value #MINIMUM_ALLOWLIST_CONTEXT_WORDS} words outside its banned-term matches. (A substring with no banned
 	 * term allows nothing; it is reported as stale instead.)
 	 */
-	private static boolean isTooBroad(String substring) {
+	private static boolean isTooBroad(@NonNull String substring) {
 		StringBuilder remainder = new StringBuilder(WHITESPACE.matcher(substring).replaceAll(" ").strip());
 		boolean bannedTerm = false;
 		for (Pattern pattern : BANNED_TERMS.values()) {
@@ -351,7 +353,7 @@ final class ClaimsLintTests {
 		private final int end;
 		private boolean covered;
 
-		private Match(String term, int start, int end) {
+		private Match(@NonNull String term, int start, int end) {
 			this.term = term;
 			this.start = start;
 			this.end = end;
@@ -364,7 +366,7 @@ final class ClaimsLintTests {
 		private final String substring;
 		private final Pattern pattern;
 
-		private AllowlistEntry(int lineNumber, String path, String substring) {
+		private AllowlistEntry(int lineNumber, @NonNull String path, @NonNull String substring) {
 			this.lineNumber = lineNumber;
 			this.path = path;
 			this.substring = substring;
@@ -374,7 +376,7 @@ final class ClaimsLintTests {
 					.collect(Collectors.joining("\\s+")), Pattern.UNICODE_CHARACTER_CLASS);
 		}
 
-		private String describe() {
+		private @NonNull String describe() {
 			return ALLOWLIST_FILE + ":" + this.lineNumber + " (" + this.path + "|" + this.substring + ")";
 		}
 	}
@@ -382,7 +384,7 @@ final class ClaimsLintTests {
 	/**
 	 * Visible for {@link ContractMetaTests}: the banned-term names.
 	 */
-	static Set<String> bannedTermNames() {
+	static @NonNull Set<@NonNull String> bannedTermNames() {
 		return new TreeSet<>(BANNED_TERMS.keySet());
 	}
 }

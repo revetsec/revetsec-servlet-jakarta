@@ -166,6 +166,54 @@ class CoreDriftTests(unittest.TestCase):
                    CLAIMS_LINT_SOURCE.format(package="com.revetsec.example").replace("}", "\tstatic int x;\n}"))
         self.assert_single_problem("ClaimsLintTests.java (package declaration ignored) differs from core")
 
+
+    def claims_source(self, package, body):
+        return "/* preserved header */\npackage " + package + ";\n" + body + "\n"
+
+    def write_claims_pair(self, core_body, adapter_body):
+        self.write(self.core, "src/test/java/com/revetsec/ClaimsLintTests.java",
+                   self.claims_source("com.revetsec", core_body))
+        self.write(self.adapter, "src/test/java/com/revetsec/example/ClaimsLintTests.java",
+                   self.claims_source("com.revetsec.example", adapter_body))
+
+    def test_jspecify_metadata_and_residual_whitespace_pass(self):
+        original = "final class ClaimsLintTests { String[] values(String... input) { return input; } }"
+        annotated = ("import org.jspecify.annotations.NonNull;\n"
+                     "import org.jspecify.annotations.Nullable;\n\n"
+                     "final class ClaimsLintTests { @NonNull String @Nullable [] values("
+                     "@org.jspecify.annotations.NonNull String @NonNull ... input) { return input; } }")
+        self.write_claims_pair(original, annotated)
+        self.assertEqual([], self.problems(COMMIT))
+
+    def test_claims_java_code_mutation_still_rejected(self):
+        original = "final class ClaimsLintTests { int value() { return 1; } }"
+        self.write_claims_pair(original, original.replace("return 1", "return 2"))
+        self.assert_single_problem("ClaimsLintTests.java (package declaration ignored) differs from core")
+
+    def test_claims_non_jspecify_annotation_still_rejected(self):
+        original = "final class ClaimsLintTests { String value() { return null; } }"
+        self.write_claims_pair(original, original.replace("String value", "@Override String value"))
+        self.assert_single_problem("ClaimsLintTests.java (package declaration ignored) differs from core")
+
+    def test_claims_literals_keep_annotation_text_and_whitespace(self):
+        literals = ['"@NonNull safe text"', "'N'", '\"\"\"\n@Nullable safe text\n\"\"\"']
+        changed = ['"@Nullable safe text"', "'n'", '\"\"\"\n@NonNull safe text\n\"\"\"']
+        for before, after in zip(literals, changed):
+            with self.subTest(literal=before):
+                original = "final class ClaimsLintTests { Object value = " + before + "; }"
+                self.write_claims_pair(original, original.replace(before, after))
+                self.assert_single_problem("ClaimsLintTests.java (package declaration ignored) differs from core")
+
+    def test_claims_comments_keep_annotation_text(self):
+        original = "final class ClaimsLintTests { /* @NonNull preserved */ int value; }"
+        self.write_claims_pair(original, original.replace("@NonNull preserved", "@Nullable changed"))
+        self.assert_single_problem("ClaimsLintTests.java (package declaration ignored) differs from core")
+
+    def test_claims_operator_token_boundaries_are_preserved(self):
+        original = "final class ClaimsLintTests { int value(int left, int right) { return left + +right; } }"
+        self.write_claims_pair(original, original.replace("left + +right", "left++right"))
+        self.assert_single_problem("ClaimsLintTests.java (package declaration ignored) differs from core")
+
     def test_rejects_claims_fixture_drift(self):
         self.write(self.adapter, "src/test/resources/contract-fixtures/claims/docs/guide.md", "Edited.\n")
         self.assert_single_problem("contract-fixtures/claims/docs/guide.md differs from core")

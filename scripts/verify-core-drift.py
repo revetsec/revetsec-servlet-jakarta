@@ -21,7 +21,8 @@ Checks:
    declares in its revetsec.version property, and the adapter's one core dependency uses that property with
    provided scope. With --expected-commit, the checkout's HEAD must be exactly that full commit SHA (the CI pin).
 2. Verbatim copies. NAMING_CONVENTIONS.md, SECURITY.md and LICENSE are byte-identical to core's.
-3. Contract-test copies. The adapter's ClaimsLintTests.java equals core's apart from its package declaration, and
+3. Contract-test copies. The adapter's ClaimsLintTests.java has the same Java tokens, comments and literals as core's
+   after only package and explicit JSpecify type-use metadata normalization, and
    its claims fixture directory equals core's, file for file.
 4. Javadoc link indexes. Every index in core's src/main/javadoc/links/manifest.json appears in the adapter's
    manifest with identical metadata and a byte-identical index file. Every index in the adapter's manifest,
@@ -173,6 +174,118 @@ def check_verbatim_files(core_directory, adapter_directory):
     return problems
 
 
+# Keep the erasure scanner identical to the core packaged-consumer checker.
+VerificationError = DriftError
+
+
+def annotation_free_source(source):
+    """Erase only JSpecify type tokens/imports outside comments and literals for the dependency-free consumer."""
+    pieces = []
+    position = 0
+    annotation = re.compile(r"@(?:org\.jspecify\.annotations\.)?(?:NonNull|Nullable)\b[ \t]*")
+    annotation_import = re.compile(r"import org\.jspecify\.annotations\.(?:NonNull|Nullable);[ \t]*(?:\r?\n)?")
+    while position < len(source):
+        if source.startswith("//", position):
+            end = source.find("\n", position)
+            end = len(source) if end < 0 else end + 1
+        elif source.startswith("/*", position):
+            end = source.find("*/", position + 2)
+            if end < 0:
+                raise VerificationError("Unterminated Java comment in consumer source")
+            end += 2
+        elif source.startswith('"""', position):
+            end = position + 3
+            while True:
+                end = source.find('"""', end)
+                if end < 0:
+                    raise VerificationError("Unterminated Java text block in consumer source")
+                escapes = 0
+                before = end - 1
+                while before >= position and source[before] == "\\":
+                    escapes += 1
+                    before -= 1
+                if escapes % 2 == 0:
+                    end += 3
+                    break
+                end += 3
+        elif source[position] in ("'", '"'):
+            quote = source[position]
+            end = position + 1
+            while end < len(source):
+                if source[end] == "\\":
+                    end += 2
+                elif source[end] == quote:
+                    end += 1
+                    break
+                else:
+                    end += 1
+        else:
+            match = annotation.match(source, position) or annotation_import.match(source, position)
+            if match:
+                position = match.end()
+                continue
+            pieces.append(source[position])
+            position += 1
+            continue
+        pieces.append(source[position:end])
+        position = end
+    return "".join(pieces)
+
+
+def claims_lint_tokens(source):
+    """Compare erased Java tokens; preserve literals, comments and operator boundaries exactly."""
+    source = annotation_free_source(without_package_declaration(source))
+    tokens = []
+    position = 0
+    atom = re.compile(r"(?:[^\W\d]|[$_])[\w$]*|(?:0[xX][0-9a-fA-F_]+(?:\.[0-9a-fA-F_]*)?(?:[pP][+-]?[0-9_]+)?[fFdDlL]?|(?:[0-9][0-9_]*(?:\.[0-9_]*)?|\.[0-9][0-9_]*)(?:[eE][+-]?[0-9_]+)?[fFdDlL]?)|>>>=|>>=|<<=|\.\.\.|>>>|>>|<<|->|::|==|!=|>=|<=|&&|\|\||\+\+|--|\+=|-=|\*=|/=|&=|\|=|\^=|%=|\S")
+    while position < len(source):
+        if source[position].isspace():
+            position += 1
+            continue
+        if source.startswith("//", position):
+            end = source.find("\n", position)
+            end = len(source) if end < 0 else end + 1
+        elif source.startswith("/*", position):
+            end = source.find("*/", position + 2)
+            if end < 0:
+                raise DriftError("Unterminated Java comment in ClaimsLint source")
+            end += 2
+        elif source.startswith('"""', position):
+            end = position + 3
+            while True:
+                end = source.find('"""', end)
+                if end < 0:
+                    raise DriftError("Unterminated Java text block in ClaimsLint source")
+                escapes = 0
+                before = end - 1
+                while before >= position and source[before] == "\\":
+                    escapes += 1
+                    before -= 1
+                if escapes % 2 == 0:
+                    end += 3
+                    break
+                end += 3
+        elif source[position] in ("'", '"'):
+            quote = source[position]
+            end = position + 1
+            while end < len(source):
+                if source[end] == "\\":
+                    end += 2
+                elif source[end] == quote:
+                    end += 1
+                    break
+                else:
+                    end += 1
+        else:
+            match = atom.match(source, position)
+            if match is None:
+                raise DriftError("Unrecognized Java token in ClaimsLint source")
+            end = match.end()
+        tokens.append(source[position:end])
+        position = end
+    return tuple(tokens)
+
+
 def without_package_declaration(source):
     return PACKAGE_DECLARATION.sub("package <adapter>;", source, count=1)
 
@@ -190,7 +303,7 @@ def check_contract_test_copies(core_directory, adapter_directory):
     else:
         core_source = without_package_declaration(core_test.decode("utf-8"))
         adapter_source = without_package_declaration(adapter_tests[0].read_text(encoding="utf-8"))
-        if core_source != adapter_source:
+        if claims_lint_tokens(core_source) != claims_lint_tokens(adapter_source):
             label = adapter_tests[0].relative_to(adapter_directory).as_posix()
             problems.append(describe_difference(label + " (package declaration ignored)",
                                                 core_source.encode("utf-8"), adapter_source.encode("utf-8")))

@@ -16,6 +16,9 @@
 
 package com.revetsec.servlet.jakarta;
 
+import org.jspecify.annotations.NonNull;
+import org.jspecify.annotations.Nullable;
+
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
@@ -58,13 +61,13 @@ final class ContractMetaTests {
 			PACKAGE + ".ListedErrorsFixture$LegacyError",
 			PACKAGE + ".ListedErrorsFixture.RetiredError");
 
-	private static Path fixture(String name) {
+	private static @NonNull Path fixture(@NonNull String name) {
 		Path fixture = ContractSupport.repositoryRoot().resolve("src/test/resources/contract-fixtures").resolve(name);
 		Assertions.assertTrue(Files.isDirectory(fixture), () -> "Missing fixture directory " + fixture);
 		return fixture;
 	}
 
-	private static Path coreStubs() {
+	private static @NonNull Path coreStubs() {
 		return fixture("core-stubs");
 	}
 
@@ -173,7 +176,7 @@ final class ContractMetaTests {
 	}
 
 	@Test
-	void packageDependencyContractRequiresTheAdapterPackageInfo(@TempDir Path sourceRoot) throws IOException {
+	void packageDependencyContractRequiresTheAdapterPackageInfo(@TempDir @NonNull Path sourceRoot) throws IOException {
 		Path packageDirectory = sourceRoot.resolve(PACKAGE_PATH);
 		Files.createDirectories(packageDirectory);
 		Files.writeString(packageDirectory.resolve("Helper.java"), ContractSupport.LICENSE_HEADER + "\npackage "
@@ -265,12 +268,12 @@ final class ContractMetaTests {
 		}
 	}
 
-	private static String translated(String source) {
+	private static @NonNull String translated(@NonNull String source) {
 		return ContractSupport.translateUnicodeEscapes(source).getText();
 	}
 
 	@Test
-	void bannedHostnameScanSearchesTextBinaryAndBase64Content(@TempDir Path repository) throws IOException {
+	void bannedHostnameScanSearchesTextBinaryAndBase64Content(@TempDir @NonNull Path repository) throws IOException {
 		String hostname = String.join(".", "saml" + "test", "id");
 		byte[] certificate = derLike(hostname);
 		write(repository, "docs/partners.md", "Line one\nSee https://" + hostname + "/idp\n");
@@ -301,7 +304,7 @@ final class ContractMetaTests {
 	}
 
 	@Test
-	void repositoryScansFollowWhatGitWouldTrack(@TempDir Path repository) throws IOException {
+	void repositoryScansFollowWhatGitWouldTrack(@TempDir @NonNull Path repository) throws IOException {
 		Assumptions.assumeTrue(git(repository, "init", "-q") && git(repository, "config", "core.excludesFile",
 				".git/no-global-excludes"), "git is not available");
 		String hostname = String.join(".", "saml" + "test", "id");
@@ -317,7 +320,7 @@ final class ContractMetaTests {
 	}
 
 	@Test
-	void licenseHeaderCheckDetectsMissingHeader(@TempDir Path sourceRoot) throws IOException {
+	void licenseHeaderCheckDetectsMissingHeader(@TempDir @NonNull Path sourceRoot) throws IOException {
 		Files.createDirectories(sourceRoot.resolve(PACKAGE_PATH));
 		Files.writeString(sourceRoot.resolve(PACKAGE_PATH + "/WithHeader.java"),
 				ContractSupport.LICENSE_HEADER + "\npackage " + PACKAGE + ";\n", StandardCharsets.UTF_8);
@@ -329,7 +332,7 @@ final class ContractMetaTests {
 	}
 
 	@Test
-	void scriptLicenseHeaderCheckDetectsMissingHeader(@TempDir Path repository) throws IOException {
+	void scriptLicenseHeaderCheckDetectsMissingHeader(@TempDir @NonNull Path repository) throws IOException {
 		Files.createDirectories(repository.resolve("scripts"));
 		Files.writeString(repository.resolve("scripts/with-shebang.py"),
 				"#!/usr/bin/env python3\n" + SourcePolicyTests.SCRIPT_LICENSE_HEADER + "\nprint()\n",
@@ -346,7 +349,7 @@ final class ContractMetaTests {
 	}
 
 	@Test
-	void claimsLintReportsExactlyTheSeededClaimsAndAllowlistProblems(@TempDir Path repository) throws IOException {
+	void claimsLintReportsExactlyTheSeededClaimsAndAllowlistProblems(@TempDir @NonNull Path repository) throws IOException {
 		copyFixture("claims", repository);
 		Files.createDirectories(repository.resolve("target"));
 		Files.writeString(repository.resolve("target/ignored.md"), "Excluded build output: certified.\n",
@@ -401,7 +404,7 @@ final class ContractMetaTests {
 	}
 
 	@Test
-	void claimsLintTreatsMissingAllowlistAsEmpty(@TempDir Path repository) throws IOException {
+	void claimsLintTreatsMissingAllowlistAsEmpty(@TempDir @NonNull Path repository) throws IOException {
 		copyFixture("claims", repository);
 		Files.delete(repository.resolve(ClaimsLintTests.ALLOWLIST_FILE));
 
@@ -420,7 +423,7 @@ final class ContractMetaTests {
 				List.copyOf(ClaimsLintTests.bannedTermNames()));
 	}
 
-	private static void expect(List<String> expected, String ruleId, String path, int... lines) {
+	private static void expect(@NonNull List<@NonNull String> expected, @NonNull String ruleId, @NonNull String path, int @NonNull ... lines) {
 		for (int line : lines)
 			expected.add(ruleId + " " + path + ":" + line);
 	}
@@ -428,7 +431,7 @@ final class ContractMetaTests {
 	/**
 	 * A few bytes shaped like a DER certificate, with {@code name} as an ASCII string inside.
 	 */
-	private static byte[] derLike(String name) {
+	private static byte @NonNull [] derLike(@NonNull String name) {
 		ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 		outputStream.writeBytes(new byte[]{0x30, (byte) 0x82, 0x01, 0x0a, 0x30, 0x00, 0x13, (byte) name.length()});
 		outputStream.writeBytes(name.getBytes(StandardCharsets.US_ASCII));
@@ -436,11 +439,11 @@ final class ContractMetaTests {
 		return outputStream.toByteArray();
 	}
 
-	private static void write(Path root, String relativePath, String content) throws IOException {
+	private static void write(@NonNull Path root, @NonNull String relativePath, @NonNull String content) throws IOException {
 		write(root, relativePath, content.getBytes(StandardCharsets.UTF_8));
 	}
 
-	private static void write(Path root, String relativePath, byte[] content) throws IOException {
+	private static void write(@NonNull Path root, @NonNull String relativePath, byte @NonNull [] content) throws IOException {
 		Path file = root.resolve(relativePath);
 		Files.createDirectories(file.getParent());
 		Files.write(file, content);
@@ -449,7 +452,7 @@ final class ContractMetaTests {
 	/**
 	 * Runs git in {@code directory}; returns whether it ran and succeeded.
 	 */
-	private static boolean git(Path directory, String... arguments) {
+	private static boolean git(@NonNull Path directory, @NonNull String @NonNull ... arguments) {
 		List<String> command = new ArrayList<>(List.of("git", "-C", directory.toString()));
 		command.addAll(List.of(arguments));
 		try {
@@ -468,7 +471,7 @@ final class ContractMetaTests {
 		}
 	}
 
-	private static void copyFixture(String name, Path target) throws IOException {
+	private static void copyFixture(@NonNull String name, @NonNull Path target) throws IOException {
 		Path source = fixture(name);
 		try (Stream<Path> paths = Files.walk(source)) {
 			for (Path path : paths.toList()) {
@@ -481,13 +484,13 @@ final class ContractMetaTests {
 		}
 	}
 
-	private static void assertReported(List<String> violations, String expectedFragment) {
+	private static void assertReported(@NonNull List<@NonNull String> violations, @NonNull String expectedFragment) {
 		Assertions.assertTrue(violations.stream().anyMatch(violation -> violation.contains(expectedFragment)),
 				() -> "Expected a violation containing \"" + expectedFragment + "\" but found:\n - "
 						+ String.join("\n - ", violations));
 	}
 
-	private static void assertNotReported(List<String> violations, String unexpectedFragment) {
+	private static void assertNotReported(@NonNull List<@NonNull String> violations, @NonNull String unexpectedFragment) {
 		Assertions.assertTrue(violations.stream().noneMatch(violation -> violation.contains(unexpectedFragment)),
 				() -> "Expected no violation containing \"" + unexpectedFragment + "\" but found:\n - "
 						+ String.join("\n - ", violations));

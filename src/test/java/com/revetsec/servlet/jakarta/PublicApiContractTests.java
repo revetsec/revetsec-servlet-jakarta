@@ -16,6 +16,8 @@
 
 package com.revetsec.servlet.jakarta;
 
+import org.jspecify.annotations.NonNull;
+
 import com.revetsec.servlet.jakarta.ContractSupport.SourceAnalysis;
 import com.sun.source.doctree.DocCommentTree;
 import com.sun.source.doctree.DocTree;
@@ -121,7 +123,7 @@ final class PublicApiContractTests {
 	 * {@code stubRoot}, if not {@code null}, holds stand-ins for Revetsec core types (see
 	 * {@link ContractSupport#analyze(Path, Path, java.util.function.Function)}).
 	 */
-	static List<String> findViolations(Path sourceRoot, @Nullable Path stubRoot) throws IOException {
+	static @NonNull List<@NonNull String> findViolations(@NonNull Path sourceRoot, @Nullable Path stubRoot) throws IOException {
 		return findViolations(sourceRoot, stubRoot, R1_EXCEPTIONS);
 	}
 
@@ -129,14 +131,14 @@ final class PublicApiContractTests {
 	 * {@link #findViolations(Path, Path)} with the given list in place of {@link #R1_EXCEPTIONS}, so
 	 * {@link ContractMetaTests} can exercise entries against the fixtures.
 	 */
-	static List<String> findViolations(Path sourceRoot, @Nullable Path stubRoot, Set<String> r1Exceptions)
+	static @NonNull List<@NonNull String> findViolations(@NonNull Path sourceRoot, @Nullable Path stubRoot, @NonNull Set<@NonNull String> r1Exceptions)
 			throws IOException {
 		if (ContractSupport.javaSources(sourceRoot).isEmpty())
 			return List.of();
 		return ContractSupport.analyze(sourceRoot, stubRoot, analysis -> findViolations(analysis, r1Exceptions));
 	}
 
-	private static List<String> findViolations(SourceAnalysis analysis, Set<String> r1Exceptions) {
+	private static @NonNull List<@NonNull String> findViolations(@NonNull SourceAnalysis analysis, @NonNull Set<@NonNull String> r1Exceptions) {
 		List<String> violations = new ArrayList<>();
 		List<TypeElement> exportedTypes = ContractSupport.exportedTypes(analysis);
 		Set<TypeElement> exported = new HashSet<>(exportedTypes);
@@ -152,8 +154,8 @@ final class PublicApiContractTests {
 	 * Every entry in a reviewed-exception list must be the binary name of a type its rule examines. Anything else,
 	 * such as a canonical {@code Outer.Nested} spelling or a name left behind by a rename, exempts nothing.
 	 */
-	private static void checkReviewedEntries(String listName, Set<String> entries, Set<TypeElement> examinedTypes,
-			String typeDescription, SourceAnalysis analysis, List<String> violations) {
+	private static void checkReviewedEntries(@NonNull String listName, @NonNull Set<@NonNull String> entries, @NonNull Set<@NonNull TypeElement> examinedTypes,
+			@NonNull String typeDescription, @NonNull SourceAnalysis analysis, @NonNull List<@NonNull String> violations) {
 		Set<String> binaryNames = examinedTypes.stream()
 				.map(type -> analysis.getElements().getBinaryName(type).toString())
 				.collect(Collectors.toUnmodifiableSet());
@@ -164,8 +166,8 @@ final class PublicApiContractTests {
 						+ typeDescription + " in the analyzed sources");
 	}
 
-	private static void checkExportedType(TypeElement type, Set<TypeElement> exported, Set<String> r1Exceptions,
-			SourceAnalysis analysis, List<String> violations) {
+	private static void checkExportedType(@NonNull TypeElement type, @NonNull Set<@NonNull TypeElement> exported, @NonNull Set<@NonNull String> r1Exceptions,
+			@NonNull SourceAnalysis analysis, @NonNull List<@NonNull String> violations) {
 		String typeName = analysis.getElements().getBinaryName(type).toString();
 
 		if (type.getKind() == ElementKind.RECORD)
@@ -226,8 +228,8 @@ final class PublicApiContractTests {
 	 * turn (a concrete exception with a subclass, say), so the hierarchy stays closed. A non-sealed subclass anywhere
 	 * below reopens it.
 	 */
-	private static void checkFinal(TypeElement type, String typeName, SourceAnalysis analysis,
-			List<String> violations) {
+	private static void checkFinal(@NonNull TypeElement type, @NonNull String typeName, @NonNull SourceAnalysis analysis,
+			@NonNull List<@NonNull String> violations) {
 		Set<Modifier> modifiers = type.getModifiers();
 		if (modifiers.contains(Modifier.FINAL))
 			return;
@@ -244,8 +246,8 @@ final class PublicApiContractTests {
 					+ "sealed (R1)");
 	}
 
-	private static void collectNonSealedSubclasses(TypeElement type, SourceAnalysis analysis,
-			List<TypeElement> openSubclasses, Set<TypeElement> visited) {
+	private static void collectNonSealedSubclasses(@NonNull TypeElement type, @NonNull SourceAnalysis analysis,
+			@NonNull List<@NonNull TypeElement> openSubclasses, @NonNull Set<@NonNull TypeElement> visited) {
 		for (TypeMirror permitted : type.getPermittedSubclasses()) {
 			if (!(analysis.getTypes().asElement(permitted) instanceof TypeElement permittedType)
 					|| !visited.add(permittedType))
@@ -261,8 +263,8 @@ final class PublicApiContractTests {
 	/**
 	 * The per-member checks: documentation, nullness and factory names.
 	 */
-	private static void checkMember(String memberName, Element member, SourceAnalysis analysis,
-			List<String> violations) {
+	private static void checkMember(@NonNull String memberName, @NonNull Element member, @NonNull SourceAnalysis analysis,
+			@NonNull List<@NonNull String> violations) {
 		if (!isOverride(member))
 			checkDocumentation(memberName, member, member.getKind() != ElementKind.ENUM_CONSTANT, analysis, violations);
 
@@ -286,8 +288,8 @@ final class PublicApiContractTests {
 		}
 	}
 
-	private static void checkDocumentation(String owner, Element element, boolean requireSince,
-			SourceAnalysis analysis, List<String> violations) {
+	private static void checkDocumentation(@NonNull String owner, @NonNull Element element, boolean requireSince,
+			@NonNull SourceAnalysis analysis, @NonNull List<@NonNull String> violations) {
 		// javac 23 and later also return Markdown (///) doc comments here, and javac 17 and 21 do not.
 		// SourcePolicyTests bans /// in main sources, so the build's outcome does not depend on the JDK.
 		@Nullable DocCommentTree docComment = analysis.getTrees().getDocCommentTree(element);
@@ -299,13 +301,13 @@ final class PublicApiContractTests {
 			violations.add(owner + ": Javadoc has no @since tag (D28)");
 	}
 
-	private static boolean isOverride(Element element) {
+	private static boolean isOverride(@NonNull Element element) {
 		return element.getAnnotationMirrors().stream()
 				.anyMatch(annotation -> annotation.getAnnotationType().toString().equals(OVERRIDE));
 	}
 
-	private static void inspectNullness(String owner, TypeMirror type, boolean root, boolean requireNonNull,
-			List<String> violations) {
+	private static void inspectNullness(@NonNull String owner, @NonNull TypeMirror type, boolean root, boolean requireNonNull,
+			@NonNull List<@NonNull String> violations) {
 		boolean checked = root || (type.getKind() != TypeKind.WILDCARD && !type.getKind().isPrimitive());
 		if (checked && !(requireNonNull ? hasExactNullness(type, NON_NULL) : hasAnyExactNullness(type)))
 			violations.add(owner + (root ? "" : " (nested)") + ": lacks "
@@ -331,11 +333,11 @@ final class PublicApiContractTests {
 		}
 	}
 
-	private static boolean hasAnyExactNullness(TypeMirror type) {
+	private static boolean hasAnyExactNullness(@NonNull TypeMirror type) {
 		return hasExactNullness(type, NON_NULL) || hasExactNullness(type, NULLABLE);
 	}
 
-	private static boolean hasExactNullness(TypeMirror type, String annotation) {
+	private static boolean hasExactNullness(@NonNull TypeMirror type, @NonNull String annotation) {
 		String opposite = annotation.equals(NON_NULL) ? NULLABLE : NON_NULL;
 		Set<String> annotations = type.getAnnotationMirrors().stream()
 				.map(value -> value.getAnnotationType().toString())
@@ -347,7 +349,7 @@ final class PublicApiContractTests {
 	 * R17: verified identity types come only from core's validators. No accessible adapter type has a public static
 	 * method, declared or inherited from a non-accessible adapter class, that returns one.
 	 */
-	private static void checkVerifiedTypes(SourceAnalysis analysis, List<String> violations) {
+	private static void checkVerifiedTypes(@NonNull SourceAnalysis analysis, @NonNull List<@NonNull String> violations) {
 		List<TypeElement> verifiedTypes = VERIFIED_TYPES.stream()
 				.map(name -> analysis.getElements().getTypeElement(name))
 				.filter(Objects::nonNull)
@@ -381,14 +383,14 @@ final class PublicApiContractTests {
 		}
 	}
 
-	private static void collectAccessibleTypes(TypeElement type, boolean accessible, Set<TypeElement> accessibleTypes) {
+	private static void collectAccessibleTypes(@NonNull TypeElement type, boolean accessible, @NonNull Set<@NonNull TypeElement> accessibleTypes) {
 		if (accessible)
 			accessibleTypes.add(type);
 		for (TypeElement nested : ElementFilter.typesIn(type.getEnclosedElements()))
 			collectAccessibleTypes(nested, accessible && ContractSupport.isPublicOrProtected(nested), accessibleTypes);
 	}
 
-	private static boolean isVerifiedType(TypeElement type, List<TypeElement> verifiedTypes, SourceAnalysis analysis) {
+	private static boolean isVerifiedType(@NonNull TypeElement type, @NonNull List<@NonNull TypeElement> verifiedTypes, @NonNull SourceAnalysis analysis) {
 		return verifiedTypes.stream().anyMatch(verifiedType -> analysis.isSubtype(type, verifiedType));
 	}
 
@@ -396,8 +398,8 @@ final class PublicApiContractTests {
 	 * Returns whether {@code type} is, contains or is bounded by a verified type or a subtype of one (a nested type of
 	 * a verified type counts too).
 	 */
-	private static boolean mentionsVerifiedType(TypeMirror type, List<TypeElement> verifiedTypes,
-			SourceAnalysis analysis, Set<TypeParameterElement> visitedTypeVariables) {
+	private static boolean mentionsVerifiedType(@NonNull TypeMirror type, @NonNull List<@NonNull TypeElement> verifiedTypes,
+			@NonNull SourceAnalysis analysis, @NonNull Set<@NonNull TypeParameterElement> visitedTypeVariables) {
 		if (type instanceof DeclaredType declaredType) {
 			for (@Nullable Element element = declaredType.asElement(); element instanceof TypeElement typeElement;
 					element = typeElement.getEnclosingElement())

@@ -16,6 +16,8 @@
 
 package com.revetsec.servlet.jakarta;
 
+import org.jspecify.annotations.NonNull;
+
 import com.revetsec.servlet.jakarta.ContractSupport.SourceAnalysis;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
@@ -64,14 +66,14 @@ final class PackageDependencyTests {
 	 * Checks the Java sources under {@code sourceRoot} and returns one message per violation (empty if none).
 	 * {@code stubRoot}, if not {@code null}, holds stand-ins for Revetsec core types.
 	 */
-	static List<String> findViolations(Path sourceRoot, @Nullable Path stubRoot) throws IOException {
+	static @NonNull List<@NonNull String> findViolations(@NonNull Path sourceRoot, @Nullable Path stubRoot) throws IOException {
 		if (ContractSupport.javaSources(sourceRoot).isEmpty())
 			return List.of(AdapterContract.ADAPTER_PACKAGE + ": package has no sources; it needs at least a "
 					+ "package-info.java (R20)");
 		return ContractSupport.analyze(sourceRoot, stubRoot, PackageDependencyTests::findViolations);
 	}
 
-	private static List<String> findViolations(SourceAnalysis analysis) {
+	private static @NonNull List<@NonNull String> findViolations(@NonNull SourceAnalysis analysis) {
 		Set<String> violations = new TreeSet<>();
 		Set<String> declaredPackages = new TreeSet<>();
 		Set<String> packagesWithPackageInfo = new HashSet<>();
@@ -109,11 +111,11 @@ final class PackageDependencyTests {
 	 * Reports each line of {@code compilationUnit} that imports or refers to anything in Revetsec core's internal
 	 * packages.
 	 */
-	private static void findCoreInternalReferences(CompilationUnitTree compilationUnit, SourceAnalysis analysis,
-			Set<String> violations) {
+	private static void findCoreInternalReferences(@NonNull CompilationUnitTree compilationUnit, @NonNull SourceAnalysis analysis,
+			@NonNull Set<@NonNull String> violations) {
 		new TreePathScanner<Void, Void>() {
 			@Override
-			public @Nullable Void visitImport(ImportTree node, Void unused) {
+			public @Nullable Void visitImport(@NonNull ImportTree node, @Nullable Void unused) {
 				String name = node.getQualifiedIdentifier().toString();
 				if (name.endsWith(".*"))
 					name = name.substring(0, name.length() - 2);
@@ -123,18 +125,18 @@ final class PackageDependencyTests {
 			}
 
 			@Override
-			public @Nullable Void visitIdentifier(IdentifierTree node, Void unused) {
+			public @Nullable Void visitIdentifier(@NonNull IdentifierTree node, @Nullable Void unused) {
 				recordReference(node);
 				return super.visitIdentifier(node, null);
 			}
 
 			@Override
-			public @Nullable Void visitMemberSelect(MemberSelectTree node, Void unused) {
+			public @Nullable Void visitMemberSelect(@NonNull MemberSelectTree node, @Nullable Void unused) {
 				recordReference(node);
 				return super.visitMemberSelect(node, null);
 			}
 
-			private void recordReference(Tree node) {
+			private void recordReference(@NonNull Tree node) {
 				@Nullable Element element = analysis.getTrees().getElement(getCurrentPath());
 				if (element == null || element.getKind() == ElementKind.PACKAGE)
 					return;
@@ -143,14 +145,14 @@ final class PackageDependencyTests {
 					report(node, packageName);
 			}
 
-			private void report(Tree node, String target) {
+			private void report(@NonNull Tree node, @NonNull String target) {
 				violations.add(analysis.location(compilationUnit, node) + ": uses " + target + "; adapters use only "
 						+ "Revetsec core's public API, and com.revetsec.internal is not API (plan 6, 7.10)");
 			}
 		}.scan(compilationUnit, null);
 	}
 
-	private static boolean isCoreInternal(String name) {
+	private static boolean isCoreInternal(@NonNull String name) {
 		return name.equals(CORE_INTERNAL) || name.startsWith(CORE_INTERNAL + ".");
 	}
 }
