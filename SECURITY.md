@@ -26,7 +26,7 @@ The supported-versions table and end-of-life policy will be set here with 1.0.0.
 
 Reports about Revetsec-authored behavior are in scope, for example: protocol message parsing and validation, signature and token verification, pending-state handling, outbound HTTP requests, resource limits, and the adapters' translation of framework requests and responses. Reports showing that a documented default, invariant or boundary does not hold are especially appreciated.
 
-Revetsec has no runtime dependencies, but it relies on the JDK's own cryptography, XML parsing and XML Signature implementation. The XML Signature implementation ships inside the JDK and is derived from Apache Santuario. Report vulnerabilities in the JDK itself to your JDK vendor, and keep your runtime current with the JDK's quarterly critical patch updates. Revetsec requires Java 17.0.3 or newer.
+Revetsec core has no runtime dependencies, but it relies on the JDK's own cryptography, XML parsing and XML Signature implementation. The XML Signature implementation ships inside the JDK and is derived from Apache Santuario. Report vulnerabilities in the JDK itself to your JDK vendor, and keep your runtime current with the JDK's quarterly critical patch updates. Revetsec requires Java 17.0.3 or newer.
 
 The core repository also holds test tooling that is never published, such as fuzzing, interop and verification harnesses and a scripted SAML test identity provider. A flaw there is in scope when it could hide a defect in Revetsec, for example a test partner that accepts or produces a message it should not.
 
@@ -34,16 +34,16 @@ The core repository also holds test tooling that is never published, such as fuz
 
 Revetsec parses and validates protocol messages for the application side of OAuth 2.0, OpenID Connect, SAML 2.0 and SCIM 2.0. It does not claim to secure an application or deployment end to end. In particular:
 
-- Revetsec is not an OAuth authorization server, OpenID Provider or SAML identity provider.
+- Revetsec's OAuth authorization-server engine issues credentials under application-supplied user, login, consent and storage decisions. Revetsec is not an OpenID Provider or SAML identity provider.
 - The application owns sessions, cookies, user storage, account linking, and the tenant scoping of external identities. See the [identity mapping guide](https://github.com/revetsec/revetsec/blob/main/docs/identity-mapping.md).
 - For SCIM, Revetsec enforces schema and mutability rules only. Which privilege-bearing attributes (roles, entitlements, administrator flags) a given SCIM client may write is the application's authorization policy.
 - Fuzzing, conformance-suite runs, interop tests, differential testing and internal reviews are evidence for their stated cases. They are not a third-party penetration test, a certification, or proof that no vulnerabilities exist.
 
-Revetsec has not been independently audited. Its security evidence is meant to be reproducible by anyone and will be listed in [`docs/`](https://github.com/revetsec/revetsec/tree/main/docs) of the core repository as it is produced: conformance logs, the interop matrix, the threat model with its invariant-to-test map, review ledgers, penetration-test notes, and fuzz and mutation reports. Revetsec is pre-release: so far the threat model maps the invariants of its foundations and of its JWT verification to their tests, [fuzz/README.md](https://github.com/revetsec/revetsec/blob/main/fuzz/README.md) records local fuzzing runs and planted-defect checks for the fuzz targets, and the rest of that evidence does not exist yet.
+Revetsec has not been independently audited. Its security evidence is meant to be reproducible by anyone and is added to [`docs/`](https://github.com/revetsec/revetsec/tree/main/docs) of the core repository as it is produced. The threat model maps implemented invariants to tests; the interop matrix and fuzz documentation record their bounded local results. Manual SAML pentest, independent review and hosted RC-2 evidence remain open before release.
 
 ## Sealing Keys
 
-`StateSealer` seals short strings into values that travel through the browser, such as a cookie, and opens them again. The OAuth client seals its pending authorization under a separate type label. Later protocol areas will use further labels for OpenID Connect or SAML sign-in and an OpenID Connect session reference. Whoever holds a sealing key can read every value sealed under it and can create values that every sealer holding it accepts, of every type. Treat a sealing key like a signing key.
+`StateSealer` seals short strings into values that travel through the browser, such as a cookie, and opens them again. Protocol flows use separate type labels for their pending state. Whoever holds a sealing key can read every value sealed under it and can create values that every sealer holding it accepts, of every type. Treat a sealing key like a signing key.
 
 - **One key per application.** Do not share a key between applications, or between environments such as staging and production.
 - **32 random bytes.** A key is exactly 32 bytes from a cryptographically secure random source, supplied as 44 characters of standard Base64, for example the output of `openssl rand -base64 32`. Keep keys out of source control and load them from a secret store. Revetsec rejects a key whose 32 bytes are all the same, as a placeholder, but it cannot tell a guessable key from a random one.
@@ -131,5 +131,24 @@ Revetsec's security invariants are published in this section as the code that up
 - **INV-O7** Basic credentials form-encode the ID and secret before Base64 by default, and secrets never enter request URLs.
 - **INV-O8** The OAuth client yields raw credentials, never a verified identity.
 - **INV-O9** Metadata issuer matches the configured issuer exactly, and each requestable endpoint passes the outbound URI policy.
+- **INV-S1** SAML XML parsing refuses DTDs and verification reads the original parsed DOM.
+- **INV-S2** Successful SAML Responses have exactly one direct Assertion or EncryptedAssertion and no hidden second assertion.
+- **INV-S3** Duplicate IDs are rejected document-wide; the selected signature target must resolve to its exact DOM node.
+- **INV-S4** XML signatures have the expected SAML position, same-element reference, transforms, algorithms and safe KeyInfo shape.
+- **INV-S5** Authenticated result values come from verified elements; unsigned Response fields cannot establish identity.
+- **INV-S6** Only configured IdP signing keys are trusted, with bounded rollover.
+- **INV-S7** Every present signature verifies and the consumed assertion is covered by a signature and checked digest input.
+- **INV-S8** Security-sensitive scalar values reject element children; complex attributes remain typed as complex values.
+- **INV-S9** A bearer SubjectConfirmation binds ACS, expiry and the initiated request when applicable.
+- **INV-S10** Conditions enforce time, audience and unknown-condition policy.
+- **INV-S11** Issuer, destination, IdP connection, browser pending state and RelayState are bound.
+- **INV-S12** A required replay cache marks a scoped assertion key only after all other checks.
+- **INV-S13** Unsolicited responses require explicit enablement and never use RelayState as a redirect target.
+- **INV-S14** GCM decryption authenticates its tag; CBC requires a verified covering Response signature and explicit IdP mode.
+- **INV-S15** SSO responses use bounded POST decoding and SLO uses bounded Redirect decoding.
+- **INV-S16** Generated SAML XML and HTML are escaped and POST form actions use HTTPS.
+- **INV-S17** Disabled JVM-global XML-signature secure validation requires an observed, explicit SP builder acknowledgment; Revetsec pins its verification context and allowlists.
+- **INV-S18** Message-content traversal avoids XPath and `getElementsByTagName`.
+- **INV-S19** SLO accepts only signed Redirect messages, with raw query verification, binding checks and replay rejection.
 - **INV-L1** The JAR has zero compile or runtime dependencies, and needs no JDK modules other than `java.base`, `java.net.http`, `java.xml`, `java.xml.crypto` and `java.logging`.
 - **INV-L2** No `ObjectInputStream`, reflective deserialization or scripting.

@@ -2,7 +2,7 @@
 
 Revetsec helpers for applications on the `jakarta.servlet` API.
 
-**This adapter is pre-release, and no adapter code exists yet.** The repository holds the build, contract tests and CI configuration. The version is `1.0.0-SNAPSHOT`, and there is no compatibility promise before 1.0.0.
+**This adapter is pre-release.** The SAML transport helper exists; the other planned helpers remain open. The version is `1.0.0-SNAPSHOT`, and there is no compatibility promise before 1.0.0.
 
 ### What Is It?
 
@@ -12,11 +12,11 @@ This adapter connects Revetsec core to the Servlet API. Its helpers pass an `Htt
 
 This adapter is for the `jakarta.servlet` API. For the legacy `javax.servlet` API, use [revetsec-servlet-javax](https://github.com/revetsec/revetsec-servlet-javax). The two adapters are maintained as twins, with the same class names in different packages.
 
-The helpers are planned as static classes. These names come from Revetsec's planned API and may change before the classes exist:
+The helpers are static classes. The SAML helper exists; the remaining names are planned:
 
 - `ServletOAuth`: the authorization response of an OAuth or OpenID Connect callback, from a GET query or a POST form, and redirect responses
 - `ServletBearer`: a request's bearer token, for resource servers
-- `ServletSaml`: the message of a SAML HTTP-POST binding request, and the redirect or auto-submitting form response that sends one
+- `ServletSaml`: bounded original-body and raw-query SAML parsing, plus exact HTTPS redirect and prepared POST-form responses
 - `ServletScim`: a SCIM request's query, body and precondition headers, and the response for a SCIM result
 
 ### Installation
@@ -72,7 +72,7 @@ dependencies {
 
 ### Status
 
-This adapter is **pre-release**, like Revetsec core. The repository currently holds the build, contract tests and CI configuration (milestone M0). Its helpers are written after the core APIs they call.
+This adapter is **pre-release**, like Revetsec core. `ServletSaml` passes the original POST body, every Content-Type value and raw Redirect query to core, and writes prepared redirects/forms. The application selects IdPs, sessions, cookies and CSP. Real servlet-container SAML qualification remains open; OAuth, bearer and SCIM helpers are still planned.
 
 Revetsec has not been independently audited. That includes this adapter. Its security evidence is meant to be reproducible by anyone and will be listed in the [`docs/`](https://github.com/revetsec/revetsec/tree/main/docs) directory of the core repository as it is produced. None of it exists yet.
 

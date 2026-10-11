@@ -227,10 +227,9 @@
 							<url>https://javadoc.io/static/org.jspecify/jspecify/1.0.1/</url>
 							<location>${project.basedir}/src/main/javadoc/links/jspecify-1.0.1</location>
 						</offlineLink>
-						<offlineLink>
-							<url>https://javadoc.io/static/jakarta.servlet/jakarta.servlet-api/6.1.0/</url>
-							<location>${project.basedir}/src/main/javadoc/links/jakarta.servlet-api-6.1.0</location>
-						</offlineLink>
+						<!-- Javadoc 26 warns when this legacy (unnamed-module) output links the
+						     Servlet 6.1 index, which declares a named module. Keep the pinned
+						     index for provenance, but omit that incompatible external link. -->
 					</offlineLinks>
 					<quiet>true</quiet>
 					<notimestamp>true</notimestamp>
