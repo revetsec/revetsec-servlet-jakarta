@@ -49,6 +49,7 @@ public final class ScimServlet extends HttpServlet {
         String credential = System.getProperty("fixture.credential");
         List<String> headers = Collections.list(request.getHeaders("Authorization"));
         if (credential == null || !headers.equals(List.of("Bearer " + credential))) {
+            response.setHeader("WWW-Authenticate", "Bearer realm=\"scim\"");
             write(response, provider.errorResponse(ScimError.unauthenticatedInstance())); return;
         }
         String path = request.getPathInfo();
@@ -147,7 +148,10 @@ public final class ScimServlet extends HttpServlet {
                         }
                     }
                 }
-            } else prepared = provider.errorResponse(ScimError.methodNotAllowedInstance());
+            } else {
+                response.setHeader("Allow", collection ? "GET, POST" : "GET, PUT, PATCH, DELETE");
+                prepared = provider.errorResponse(ScimError.methodNotAllowedInstance());
+            }
         } finally { transaction.unlock(); }
         // Only a confirmed fixture commit reaches a success response; durable unknown-commit outcomes need
         // a separate application branch, as described in the paired cookbook and core provisioning example.

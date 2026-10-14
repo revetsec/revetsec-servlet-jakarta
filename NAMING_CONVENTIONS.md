@@ -74,7 +74,7 @@ ScimServiceProvider.Builder scimBuilder = ScimServiceProvider.builder();
 // Instance factories
 SealingKey sealingKey = SealingKey.fromBase64("2026-09", base64Key);
 ClientAuthentication clientAuthentication = ClientAuthentication.fromClientSecretBasic(clientSecret);
-ScimFilter scimFilter = ScimFilter.fromExpression("userName eq \"bjensen\"");
+ScimFilterParseResult scimFilterResult = ScimFilter.fromExpressionResult("userName eq \"bjensen\"");
 
 // Shared singletons and presets
 OutboundUriPolicy outboundUriPolicy = OutboundUriPolicy.defaultInstance();

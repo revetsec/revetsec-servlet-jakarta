@@ -19,6 +19,8 @@ import com.google.errorprone.annotations.CheckReturnValue;
 import com.revetsec.saml.SamlAuthenticationRequestResult;
 import com.revetsec.saml.SamlLogoutRedirectResult;
 import com.revetsec.saml.SamlLogoutResponseRedirectResult;
+import com.revetsec.saml.SamlLogoutPostResult;
+import com.revetsec.saml.SamlLogoutResponsePostResult;
 import com.revetsec.saml.SamlPostBindingMessage;
 import com.revetsec.saml.SamlPostBindingParseResult;
 import com.revetsec.saml.SamlPostForm;
@@ -67,13 +69,38 @@ public final class ServletSaml {
         requireNonNull(request);
         if (!"POST".equals(request.getMethod()))
             throw new IllegalArgumentException("SAML ACS route requires POST");
+        return postBindingResult(request, false);
+    }
+
+    /**
+     * Reads the original bounded logout POST body, every Content-Type value and the raw query.
+     * The application supplies browser-bound pending state to core when completing SP logout;
+     * a pending cookie for a cross-site POST requires Secure, HttpOnly and SameSite=None.
+     *
+     * @param request application-routed logout POST request
+     * @return core's untrusted logout POST-binding parse result
+     * @throws IOException if the servlet input stream fails
+     * @since 1.0.0
+     */
+    @CheckReturnValue
+    public static @NonNull SamlPostBindingParseResult postLogoutBindingResultFor(
+            @NonNull HttpServletRequest request) throws IOException {
+        requireNonNull(request);
+        if (!"POST".equals(request.getMethod()))
+            throw new IllegalArgumentException("SAML logout route requires POST");
+        return postBindingResult(request, true);
+    }
+
+    private static @NonNull SamlPostBindingParseResult postBindingResult(
+            @NonNull HttpServletRequest request, boolean logout) throws IOException {
         List<String> contentTypes = new ArrayList<>();
         Enumeration<String> values = request.getHeaders("Content-Type");
         if (values != null) while (values.hasMoreElements()) contentTypes.add(values.nextElement());
         byte[] body = request.getInputStream().readNBytes(MAXIMUM_ADAPTER_BODY_BYTES + 1);
         if (body.length > MAXIMUM_ADAPTER_BODY_BYTES) body = new byte[0];
-        return SamlPostBindingMessage.fromFormBodyResult(body, List.copyOf(contentTypes),
-                request.getQueryString());
+        return logout ? SamlPostBindingMessage.fromLogoutFormBodyResult(body, List.copyOf(contentTypes),
+                request.getQueryString()) : SamlPostBindingMessage.fromFormBodyResult(body,
+                List.copyOf(contentTypes), request.getQueryString());
     }
 
     /**
@@ -129,6 +156,36 @@ public final class ServletSaml {
         writeRedirect(response, requireNonNull(prepared).getRedirectUri());
     }
 
+    /**
+     * Writes a core-prepared SP logout POST form. Set the browser-bound pending cookie and CSP
+     * before delivery; a cross-site POST pending cookie requires Secure, HttpOnly and SameSite=None.
+     *
+     * @param response application-owned response
+     * @param prepared core-prepared logout request
+     * @param cspNonce application-generated CSP nonce, or null for manual submission
+     * @throws IOException if the servlet output stream fails
+     * @since 1.0.0
+     */
+    public static void writeLogoutPostForm(@NonNull HttpServletResponse response,
+            SamlLogoutPostResult.@NonNull Prepared prepared, @Nullable String cspNonce) throws IOException {
+        writePostForm(response, requireNonNull(prepared).getPostForm(), cspNonce);
+    }
+
+    /**
+     * Writes a core-prepared POST answer to an IdP logout request. The application sets its CSP.
+     *
+     * @param response application-owned response
+     * @param prepared core-prepared logout response
+     * @param cspNonce application-generated CSP nonce, or null for manual submission
+     * @throws IOException if the servlet output stream fails
+     * @since 1.0.0
+     */
+    public static void writeLogoutResponsePostForm(@NonNull HttpServletResponse response,
+            SamlLogoutResponsePostResult.@NonNull Prepared prepared, @Nullable String cspNonce)
+            throws IOException {
+        writePostForm(response, requireNonNull(prepared).getPostForm(), cspNonce);
+    }
+
     private static void writeRedirect(@NonNull HttpServletResponse response, @NonNull URI destination) {
         requireNonNull(response);
         requireNonNull(destination);
@@ -147,7 +204,7 @@ public final class ServletSaml {
      * Writes a core-prepared POST form. The application sets its CSP and pending cookie first.
      *
      * @param response application-owned response
-     * @param form core-prepared AuthnRequest form
+     * @param form core-prepared SAML authentication or logout form
      * @param cspNonce application-generated CSP nonce, or null for manual submission
      * @throws IOException if the servlet output stream fails
      * @since 1.0.0

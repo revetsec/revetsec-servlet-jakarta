@@ -16,7 +16,7 @@ The helpers are static classes. The SAML helper exists; the remaining names are 
 
 - `ServletOAuth`: the authorization response of an OAuth or OpenID Connect callback, from a GET query or a POST form, and redirect responses
 - `ServletBearer`: a request's bearer token, for resource servers
-- `ServletSaml`: bounded original-body and raw-query SAML parsing, plus exact HTTPS redirect and prepared POST-form responses
+- `ServletSaml`: bounded original-body and raw-query SAML parsing, plus exact HTTPS redirect and prepared authentication/logout POST-form responses
 - `ServletScim`: a SCIM request's query, body and precondition headers, and the response for a SCIM result
 
 ### Installation
@@ -72,7 +72,7 @@ dependencies {
 
 ### Status
 
-This adapter is **pre-release**, like Revetsec core. `ServletSaml` passes the original POST body, every Content-Type value and raw Redirect query to core, and writes prepared redirects/forms. The application selects IdPs, sessions, cookies and CSP. SCIM raw query/projection/conditional helpers, bounded body reads and exact prepared response writing are available through `ServletScim` and `ServletScimBodyResult`; the [SCIM integration guide](docs/scim.md) includes the paired compiled example and pinned real-container qualification runner. Real servlet-container SAML qualification remains open; OAuth and bearer helpers are still planned.
+This adapter is **pre-release**, like Revetsec core. `ServletSaml` passes the original POST body, every Content-Type value and raw Redirect query to core, and writes prepared redirects/forms. The application selects IdPs, sessions, cookies and CSP. SCIM raw query/projection/conditional helpers, bounded body reads and exact prepared response writing are available through `ServletScim` and `ServletScimBodyResult`; the [SCIM integration guide](docs/scim.md) includes the paired compiled example and pinned real-container qualification runner. The [SAML transport guide](docs/saml.md) documents HTTP-POST logout and the paired real-container qualification runner. OAuth and bearer helpers are still planned.
 
 Revetsec has not been independently audited. That includes this adapter. Its security evidence is meant to be reproducible by anyone and will be listed in the [`docs/`](https://github.com/revetsec/revetsec/tree/main/docs) directory of the core repository as it is produced. SCIM unit and real-container qualification can be rerun locally; release interoperability and independent assurance gates remain tracked in core.
 

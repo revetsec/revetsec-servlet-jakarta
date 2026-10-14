@@ -170,7 +170,14 @@ def main():
                 members = json.loads(request("GET", path)[2])["members"]
                 assert [member["value"] for member in members] == ["u2"], "group-membership-ordered-result"
                 checks.append("actual-group-membership-add-filtered-remove")
-                assert request("GET", "/Users", authenticated=False)[0] == 401, "unauthenticated"
+                unauthenticated = request("GET", "/Users", authenticated=False)
+                assert unauthenticated[0] == 401, "unauthenticated"
+                assert unauthenticated[1].get("www-authenticate") == 'Bearer realm="scim"', "host-authentication-challenge"
+                unsupported_collection = request("PATCH", "/Users", b"{}", media)
+                assert unsupported_collection[0] == 405 and unsupported_collection[1].get("allow") == "GET, POST", "host-collection-allow"
+                unsupported_resource = request("POST", path, b"{}", media)
+                assert unsupported_resource[0] == 405 and unsupported_resource[1].get("allow") == "GET, PUT, PATCH, DELETE", "host-resource-allow"
+                checks.append("actual-host-authentication-challenge-and-target-specific-allow")
                 assert request("GET", "/Users?count=1&count=2")[0] == 400, "raw-query-multiplicity"
                 assert request("POST", "/Users", b"{}", media + media)[0] == 415, "physical-content-type-duplicates"
                 assert request("POST", "/Users", bytes([0xc3, 0x28]), media)[0] == 400, "malformed-utf8"
