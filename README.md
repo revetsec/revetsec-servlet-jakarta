@@ -72,9 +72,9 @@ dependencies {
 
 ### Status
 
-This adapter is **pre-release**, like Revetsec core. `ServletSaml` passes the original POST body, every Content-Type value and raw Redirect query to core, and writes prepared redirects/forms. The application selects IdPs, sessions, cookies and CSP. Real servlet-container SAML qualification remains open; OAuth, bearer and SCIM helpers are still planned.
+This adapter is **pre-release**, like Revetsec core. `ServletSaml` passes the original POST body, every Content-Type value and raw Redirect query to core, and writes prepared redirects/forms. The application selects IdPs, sessions, cookies and CSP. SCIM raw query/projection/conditional helpers, bounded body reads and exact prepared response writing are available through `ServletScim` and `ServletScimBodyResult`; the [SCIM integration guide](docs/scim.md) includes the paired compiled example and pinned real-container qualification runner. Real servlet-container SAML qualification remains open; OAuth and bearer helpers are still planned.
 
-Revetsec has not been independently audited. That includes this adapter. Its security evidence is meant to be reproducible by anyone and will be listed in the [`docs/`](https://github.com/revetsec/revetsec/tree/main/docs) directory of the core repository as it is produced. None of it exists yet.
+Revetsec has not been independently audited. That includes this adapter. Its security evidence is meant to be reproducible by anyone and will be listed in the [`docs/`](https://github.com/revetsec/revetsec/tree/main/docs) directory of the core repository as it is produced. SCIM unit and real-container qualification can be rerun locally; release interoperability and independent assurance gates remain tracked in core.
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 

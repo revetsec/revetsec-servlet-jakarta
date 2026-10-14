@@ -10,6 +10,9 @@ Nothing has been released. The version is `1.0.0-SNAPSHOT`, and there is no comp
 
 ### Added
 
+- SCIM transport bridge (`ServletScim`) with raw query/projection/conditional helpers, bounded lazy original headers, provider-capped raw body reads (`ServletScimBodyResult`) and exact prepared response writing. Explicit overflow and unavailable I/O results expose no partial body.
+- Paired compiled SCIM cookbook and pinned real Tomcat User/Group CRUD, PATCH, membership and transport qualification runner. Concrete Servlet test fakes remain test dependencies.
+
 - Repository scaffold (milestone M0), with no adapter code yet:
   - a single-module Maven build for `com.revetsec:revetsec-servlet-jakarta`, targeting Java 17, whose only non-test dependencies are Revetsec core, the `jakarta.servlet` API and annotation JARs, all `provided`;
   - the `com.revetsec.servlet.jakarta` package;

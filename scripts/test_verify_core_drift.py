@@ -291,11 +291,11 @@ class WorkflowTests(unittest.TestCase):
                 if "-f core/pom.xml" in job:
                     self.assertLess(job.index("rm -rf ~/.m2/repository/com/revetsec"), job.index("-f core/pom.xml"))
                     self.assertLess(job.index("-f core/pom.xml"), job.index("-f adapter/pom.xml"))
-        self.assertEqual(3, core_jobs)
+        self.assertEqual(4, core_jobs)
 
     def test_core_is_installed_without_tests_or_javadoc(self):
         installs = re.findall(r"mvn [^\n]*-f core/pom\.xml[^\n]*", self.workflow)
-        self.assertEqual(2, len(installs))
+        self.assertEqual(3, len(installs))
         for install in installs:
             self.assertIn("-DskipTests", install)
             self.assertIn("-Dmaven.javadoc.skip=true", install)

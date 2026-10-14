@@ -16,13 +16,9 @@ on:
 
 env:
   # ==================================================================================================
-  # PINNED REVETSEC CORE COMMIT: the full 40-character SHA of a pushed revetsec/revetsec commit.
-  #
-  # PLACEHOLDER: the 40 zeros below mean "not pinned yet", because core has no commit to pin. After the
-  # first core commit is pushed, replace them with that commit's SHA. Until then every job fails at its
-  # "Validate the core pin" step, on purpose.
+  # Pushed M11 core baseline used by the SCIM adapter. Move the full SHA explicitly for later core changes.
   # ==================================================================================================
-  REVETSEC_CORE_SHA: 'a70e7bb796e67f3f0bfcb76472d57abda39ed792'
+  REVETSEC_CORE_SHA: '348da72b82f2709c21e744791e33e2297b5d4b34'
 
 permissions:
   contents: read
@@ -223,3 +219,59 @@ jobs:
 
       - name: Error Prone, NullAway, SpotBugs and FindSecBugs
         run: mvn -B -ntp -f adapter/pom.xml -Dmaven.javadoc.skip=true -Pstatic-analysis,spotbugs verify
+
+  scim-container:
+    name: SCIM Real Servlet Container (JDK 21)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: drift
+    steps:
+      - name: Check out adapter
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: adapter
+          persist-credentials: false
+      - name: Validate the core pin
+        run: |
+          if [[ "$REVETSEC_CORE_SHA" =~ ^0{40}$ ]] || [[ ! "$REVETSEC_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=Invalid core pin::Pin a pushed full core SHA before qualification."
+            exit 1
+          fi
+      - name: Check out Revetsec core at the pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: revetsec/revetsec
+          ref: ${{ env.REVETSEC_CORE_SHA }}
+          path: core
+          persist-credentials: false
+      - name: Set up Corretto 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: corretto
+          java-version: '21'
+          cache: maven
+      - name: Build pinned core and adapter
+        run: |
+          rm -rf ~/.m2/repository/com/revetsec
+          mvn -B -ntp -f core/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
+          mvn -B -ntp -f adapter/pom.xml -Dmaven.javadoc.skip=true package
+      - name: Download the reviewed Servlet runtime
+        run: |
+          url=$(python3 -c 'import json; print(json.load(open("adapter/verification/scim-container/runtime.json"))["url"])')
+          curl --fail --location --proto '=https' --tlsv1.2 "$url" --output "$RUNNER_TEMP/tomcat.tar.gz"
+      - name: Qualify actual User and Group routes
+        run: >-
+          python3 adapter/verification/scim-container/run.py
+          --tomcat-archive "$RUNNER_TEMP/tomcat.tar.gz"
+          --core-jar core/target/revetsec-1.0.0-SNAPSHOT.jar
+          --adapter-jar adapter/target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar
+          --java-home "$JAVA_HOME"
+          --output "$RUNNER_TEMP/scim-container-evidence"
+      - name: Upload redacted container receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: scim-servlet-jakarta-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/scim-container-evidence/RESULT.json
+          if-no-files-found: error
+          retention-days: 14
