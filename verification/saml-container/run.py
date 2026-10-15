@@ -177,7 +177,7 @@ def main():
                 assert request("POST", "/logout", idp_request + b"&SAMLResponse=PGEvPg%3D%3D", media)[0] == 400, "mixed-message-fields"
                 assert request("POST", "/logout", idp_request + b"&SAMLRequest=PGEvPg%3D%3D", media)[0] == 400, "duplicate-message-field"
                 assert request("POST", "/logout", b"SAMLRequest=%C3%28", media)[0] == 400, "malformed-utf8"
-                assert request("POST", "/logout", b"a" * 2000001, media)[0] == 400, "adapter-body-cap-plus-one"
+                assert request("POST", "/logout", b"a" * 1061129, media)[0] == 400, "adapter-body-cap-plus-one"
                 assert request("GET", "/logout")[0] == 405, "method-mismatch"
                 assert request("POST", "/logout", idp_request, media, authenticated=False)[0] == 401, "fixture-authentication"
                 checks.append("actual-acs-separation-query-header-body-multiplicity-utf8-overflow-method-auth")

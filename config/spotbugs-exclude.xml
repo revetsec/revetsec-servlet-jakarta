@@ -8,4 +8,18 @@
 		<Method name="writeRedirect" />
 		<Bug pattern="UNVALIDATED_REDIRECT" />
 	</Match>
+	<!-- This helper accepts an application-approved destination and rejects malformed, non-HTTP(S),
+	     userinfo and control-bearing URIs. Host/provider selection belongs to the application or core. -->
+	<Match>
+		<Class name="com.revetsec.servlet.jakarta.ServletOAuth" />
+		<Method name="writeRedirect" />
+		<Bug pattern="UNVALIDATED_REDIRECT" />
+	</Match>
+	<!-- Location is an immutable core-prepared credential redirect; the adapter emits it exactly
+	     once without deriving a destination from Servlet request headers or parameters. -->
+	<Match>
+		<Class name="com.revetsec.servlet.jakarta.ServletOAuthAuthorizationServer" />
+		<Method name="writeResponse" />
+		<Bug pattern="UNVALIDATED_REDIRECT" />
+	</Match>
 </FindBugsFilter>

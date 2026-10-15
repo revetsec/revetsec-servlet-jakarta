@@ -2,6 +2,8 @@
 
 Route ACS POST input through `ServletSaml.postBindingResultFor(request)` and logout POST input through `ServletSaml.postLogoutBindingResultFor(request)`. Call these before any servlet parameter parser consumes the original body. Both helpers preserve every Content-Type value and the raw query; core rejects ambiguous binding fields. The ACS parser accepts only `SAMLResponse`; the logout parser accepts one `SAMLRequest` or `SAMLResponse` and exposes its untrusted kind.
 
+On an ACS completion, establish an application login session only for core's successful authentication result. Rotate the application session ID before binding the authenticated account to it. A rejected, unavailable or indeterminate result grants no session.
+
 Configure the SP with `postSingleLogoutServiceUrl` and the approved IdP with `postSingleLogoutService`. A shared path may handle GET Redirect and POST logout, but both binding endpoints must be configured explicitly.
 
 For SP-initiated logout, call `SamlServiceProvider.beginPostLogoutResult(idp, sessionReference)`, handle every result, and persist its `Prepared.getPendingLogout()` in browser-bound state before writing the form with `ServletSaml.writeLogoutPostForm(response, prepared, cspNonce)`. For a cross-site POST callback, the application-owned pending cookie requires `Secure`, `HttpOnly` and `SameSite=None`. A server-side pending store still needs an initiating-browser secret. Configure CSP to permit only the approved IdP form action and the application-generated nonce, if automatic submission is desired.

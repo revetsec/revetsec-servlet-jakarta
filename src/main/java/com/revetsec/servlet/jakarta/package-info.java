@@ -18,8 +18,9 @@
  * Revetsec helpers for applications on the {@code jakarta.servlet} API.
  * <p>
  * The helpers are static classes. They pass an {@code HttpServletRequest} to Revetsec core as raw input (query
- * string, form body or parameters, header values) and write Revetsec results to an {@code HttpServletResponse}.
- * They contain no protocol logic: every validation decision is made by Revetsec core, through its public API only.
+ * string, original body and header values) and write Revetsec results to an {@code HttpServletResponse}.
+ * They perform bounded transport checks while Revetsec core makes protocol and credential-validation decisions
+ * through its public API only. The application owns routing, sessions and authorization.
  * <p>
  * Revetsec core and the Servlet API are {@code provided} dependencies of this adapter: an application declares
  * core, and its servlet container supplies the Servlet API. The {@code revetsec-servlet-javax} adapter has the same

@@ -1,0 +1,10 @@
+{
+  "version": "11.0.27",
+  "archiveSha512": "a617896307cada4884b24f80c4e977ddad8b3e0f88ce0e2a6eea29d5f332498e276ae5976c227a9c8daecf05c7c90def684a3766dd5a81f47a56d8b1adf43dc3",
+  "url": "https://downloads.apache.org/tomcat/tomcat-11/v11.0.27/bin/apache-tomcat-11.0.27.tar.gz",
+  "checkedOn": "2026-10-13",
+  "license": "Apache-2.0",
+  "releaseSource": "https://tomcat.apache.org/download-11.cgi",
+  "advisorySource": "https://tomcat.apache.org/security-11.html",
+  "scope": "Test-only real Servlet runtime, no production dependency"
+}

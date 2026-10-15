@@ -25,7 +25,7 @@ $ mvn -B -ntp -Dmaven.javadoc.skip=true verify
 
 The second command compiles, runs every test (including the contract tests) and packages the JAR. Use `install` instead of `verify` to put `1.0.0-SNAPSHOT` into your local Maven repository.
 
-Pass `-Dmaven.javadoc.skip=true` to every build for now. The adapter has no public types to document yet; Javadoc generation starts with the first one, and this file will then describe its setup.
+The routine CI verification commands pass `-Dmaven.javadoc.skip=true`. The adapter now has public helpers with Javadoc in `src/main/java`; that flag separates compilation and tests from Javadoc generation. The Javadoc plugin is configured in `pom.xml` for its separate qualification.
 
 #### Gate Commands
 
@@ -38,6 +38,8 @@ CI runs these checks on every pull request. Run the ones your change affects bef
 | Drift from core | none | `python3 scripts/verify-core-drift.py --core-directory ../revetsec` |
 | Drift-check self-tests | none | `python3 -m unittest discover -s scripts -p 'test_*.py'` |
 
+The [workflow guide](docs/workflows.md#build-and-compile-the-paired-source) gives the paired source compile commands, the concrete PostgreSQL reference-store wiring and the pinned M12 Tomcat runner. CI compiles both cookbook sources in its M12 container job. The [SAML](docs/saml.md#real-container-qualification) and [SCIM](docs/scim.md#real-container-qualification) guides give their own container commands. Run affected real-container checks after building core and this adapter; unit fakes alone do not establish container body, header or cookie behavior.
+
 The build's contract tests enforce the conventions in [NAMING_CONVENTIONS.md](NAMING_CONVENTIONS.md), the adapter's single package and its use of core's public API only, a list of banned source constructs, and the wording of the documentation. `ClaimsLintTests` rejects unsupported claims in any Markdown file. If it flags wording you wrote, rephrase it. An entry in `claims-allowlist.txt` is for wording that has evidence behind it, and each entry states that evidence.
 
 #### Files Copied From Core
@@ -48,7 +50,7 @@ The build's contract tests enforce the conventions in [NAMING_CONVENTIONS.md](NA
 
 CI does not resolve Revetsec core from a repository. It checks out `revetsec/revetsec` at the commit in `REVETSEC_CORE_SHA` (`.github/workflows/ci.yml`), installs it with `-DskipTests -Dmaven.javadoc.skip=true`, and builds this adapter against it. The pin is a full 40-character commit SHA, never a branch or tag, and it moves only by pull request.
 
-Until the first core commit exists, the pin is a placeholder of 40 zeros and every CI job fails with a message saying so. The project owner replaces it with the SHA of a pushed core commit.
+The workflow currently has a nonplaceholder core SHA. Keep it pinned to a pushed compatible core commit when the adapter's public API changes.
 
 A core change that breaks this adapter lands as a pair: this adapter's pull request pins the core pull request's head SHA, and after both merge the pin moves to the merged core commit.
 
@@ -57,10 +59,10 @@ A core change that breaks this adapter lands as a pair: this adapter's pull requ
 - Java 17 language level; tabs for indentation.
 - Every Java source file and script starts with the Apache License 2.0 header that names `Copyright 2026 Revetware LLC.`, as in the existing files.
 - Public API follows [NAMING_CONVENTIONS.md](NAMING_CONVENTIONS.md). Helpers are static classes with a private constructor and verb or noun methods. There are no public records. Every public element carries JSpecify nullness annotations, every exported type carries exactly one of `@ThreadSafe`, `@NotThreadSafe` or `@Immutable`, and every public member has `@since`.
-- Helpers contain no protocol logic. They pass raw input to Revetsec core through its public API and never use `com.revetsec.internal`.
+- Helpers contain no protocol logic. They apply bounded method, media, body and redirect transport checks, pass raw input to Revetsec core through its public API, and never use `com.revetsec.internal`.
 - No compile or runtime dependencies. Revetsec core, the `jakarta.servlet` API and the annotation JARs are `provided`; everything else is `test` scope.
 - This adapter and [revetsec-servlet-javax](https://github.com/revetsec/revetsec-servlet-javax) are twins with the same class names in different packages. A change to one is made to the other in the same pull request pair.
-- Test classes are named `*Tests`. Tests use the request and response implementations from Soklet's [`soklet-servlet-jakarta`](https://github.com/soklet/soklet-servlet-jakarta) as test-scope fakes instead of mocks, use a fixed `Clock`, and never call `Thread.sleep`.
+- Test classes are named `*Tests`. Tests use concrete request/response fixtures from Soklet's [`soklet-servlet-jakarta`](https://github.com/soklet/soklet-servlet-jakarta) where useful and focused carrier fakes for raw header/body failure cases. Use a fixed `Clock` where time matters and avoid `Thread.sleep`. The container runners exercise actual Servlet behavior.
 
 #### Publishing
 

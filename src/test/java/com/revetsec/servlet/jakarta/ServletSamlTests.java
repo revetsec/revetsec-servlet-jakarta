@@ -79,6 +79,18 @@ final class ServletSamlTests {
                 body.getBytes(StandardCharsets.US_ASCII));
         assertInstanceOf(SamlPostBindingParseResult.Rejected.class,
                 ServletSaml.postBindingResultFor(duplicate));
+        HttpServletRequest wrongMedia = (HttpServletRequest) Proxy.newProxyInstance(
+                HttpServletRequest.class.getClassLoader(), new Class<?>[]{HttpServletRequest.class},
+                (proxy, called, arguments) -> switch (called.getName()) {
+                    case "getMethod" -> "POST";
+                    case "getQueryString" -> null;
+                    case "getHeaders" -> Collections.enumeration(List.of("text/plain"));
+                    case "getInputStream" -> throw new AssertionError("invalid media must not read the body");
+                    default -> null;
+                });
+        assertEquals(SamlPostBindingParseResult.Reason.CONTENT_TYPE,
+                assertInstanceOf(SamlPostBindingParseResult.Rejected.class,
+                        ServletSaml.postBindingResultFor(wrongMedia)).getReason());
         assertThrows(IllegalArgumentException.class, () -> ServletSaml.postBindingResultFor(
                 request("GET", null, List.of("application/x-www-form-urlencoded"), new byte[0])));
     }
@@ -128,7 +140,7 @@ final class ServletSamlTests {
                 request("POST", null, List.of("application/x-www-form-urlencoded"),
                         "SAMLRequest=PGEvPg%3D%3D".getBytes(StandardCharsets.US_ASCII))));
         assertInstanceOf(SamlPostBindingParseResult.Rejected.class, ServletSaml.postLogoutBindingResultFor(
-                request("POST", null, List.of("application/x-www-form-urlencoded"), new byte[2_000_001])));
+                request("POST", null, List.of("application/x-www-form-urlencoded"), new byte[1_061_129])));
         assertThrows(IllegalArgumentException.class, () -> ServletSaml.postLogoutBindingResultFor(
                 request("GET", null, List.of(), new byte[0])));
     }

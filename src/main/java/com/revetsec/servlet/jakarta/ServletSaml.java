@@ -51,7 +51,8 @@ import static java.util.Objects.requireNonNull;
  */
 @ThreadSafe
 public final class ServletSaml {
-    private static final int MAXIMUM_ADAPTER_BODY_BYTES = 2_000_000;
+    // Mirrors core's SAML POST bound: three encoded fields plus framing.
+    private static final int MAXIMUM_ADAPTER_BODY_BYTES = 1_061_128;
 
     private ServletSaml() { }
 
@@ -96,11 +97,19 @@ public final class ServletSaml {
         List<String> contentTypes = new ArrayList<>();
         Enumeration<String> values = request.getHeaders("Content-Type");
         if (values != null) while (values.hasMoreElements()) contentTypes.add(values.nextElement());
+        String rawQuery = request.getQueryString();
+        // Let core reject invalid framing before allocating or reading an untrusted body.
+        byte[] framingProbe = { 'x' };
+        SamlPostBindingParseResult framing = logout
+                ? SamlPostBindingMessage.fromLogoutFormBodyResult(framingProbe, List.copyOf(contentTypes), rawQuery)
+                : SamlPostBindingMessage.fromFormBodyResult(framingProbe, List.copyOf(contentTypes), rawQuery);
+        if (framing instanceof SamlPostBindingParseResult.Rejected rejection
+                && rejection.getReason() == SamlPostBindingParseResult.Reason.CONTENT_TYPE) return framing;
         byte[] body = request.getInputStream().readNBytes(MAXIMUM_ADAPTER_BODY_BYTES + 1);
         if (body.length > MAXIMUM_ADAPTER_BODY_BYTES) body = new byte[0];
         return logout ? SamlPostBindingMessage.fromLogoutFormBodyResult(body, List.copyOf(contentTypes),
-                request.getQueryString()) : SamlPostBindingMessage.fromFormBodyResult(body,
-                List.copyOf(contentTypes), request.getQueryString());
+                rawQuery) : SamlPostBindingMessage.fromFormBodyResult(body,
+                List.copyOf(contentTypes), rawQuery);
     }
 
     /**

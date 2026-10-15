@@ -23,8 +23,20 @@ It is adapted from Soklet's naming conventions. Revetsec core and each Revetsec 
   Collection and map properties accept complete values, snapshot them before assignment, and replace previous values.
   Passing `null` restores the default. There are no per-item adders and no varargs setters.
   Callers accumulating values should assemble a list and assign it once, not call a replacement setter per item.
-- **Accessors:** use `getX()`, or `isX()` for a `Boolean`. Absent values are returned as `Optional`, and numbers and booleans are boxed (`Integer`, `Long`, `Boolean`).
+- **Operation outcomes:** use one immutable, operation-specific sealed result type when callers must distinguish
+  known outcomes such as success, absence, malformed input, denial or rejection. Keep the `Result` suffix on these
+  operation entrypoints. Do not add an Optional-returning or throwing facade for the same operation, and do not
+  hide known outcomes in exceptions. Payload-free outcomes may use an operation-specific enum, as with store
+  acknowledgements; provider SPI methods keep their domain verbs. Programmer misuse and unexpected infrastructure
+  failures may remain exceptions.
+- **Accessors and lookups:** use `getX()`, or `isX()` for a `Boolean`. Use `Optional` only for an actual value or
+  its absence; do not collapse a present value of the wrong type or a rejected operation into empty. Raw JSON
+  member lookup returns an optional sealed JSON value so callers can inspect every present subtype. Exact numeric
+  representability queries may return an Optional exact value. Numbers and booleans are boxed (`Integer`, `Long`, `Boolean`).
 - **Public value types:** use `final` classes with private constructors, never public records.
+- **Protocol names:** use `Jwk` for a JSON Web Key and `Jwks` for a JSON Web Key Set, consistent with
+  `Jwt`, `Jws` and `Jose`. Sources of key sets use `JwksSource`, `StaticJwksSource` and `RemoteJwksSource`.
+- **JSON conversions:** `toJson()` returns JSON text as a `String`; `toJsonObject()` returns a structured `JsonObject`.
 - **Properties and parameters:** use the full domain name where it distinguishes the value, for example
   `assertionConsumerServiceUrl`, `pendingAuthenticationLifetime`, and `expectedAudiences`.
 - **Role types:** name their capability explicitly: `PendingAuthorizationSource`,
@@ -38,7 +50,9 @@ It is adapted from Soklet's naming conventions. Revetsec core and each Revetsec 
   The rare factory an application needs is a reviewed exception that the contract tests list.
 - **Secret-emitting methods:** a method that returns a secret says so by name, such as `getValue()`, `toSealedForm()`,
   `toCompactSerialization()`, or `getAuthorizationHeaderValue()`. `toString()` never renders a secret.
-- **Adapter helpers:** stateless helper classes use verb or noun methods, such as `authorizationResponseFor(request)`.
+- **Adapter helpers:** stateless helper classes use verb or noun methods, such as `authorizationResponseResultFor(request)`.
+  Response-specific Soklet factories use `JwksResponse.from(...)` and `JwksMarshaledResponse.from(...)`, returning
+  the framework response type directly.
 - **Avoid** `of*`, `create*`, `new*` for public APIs to keep the search surface uniform.
 - **Renames:** until 1.0.0, rename cleanly without a compatibility alias. From 1.0.0, add the new name next to a deprecated alias, and remove the alias only in a major release.
 
@@ -51,8 +65,16 @@ Validation exceptions keep a concise nested `Reason` enum, read with `getReason(
 
 JSON value builders add one member per call: `JsonObject.Builder.put(name, value)` and `putNull(name)` each add a
 single member, and a name that is already present throws `IllegalArgumentException` instead of replacing the earlier
-value. They are the only per-item adders. There is no `JsonArray` builder: `JsonArray.fromElements(List)` takes the
+value. The outbound `JwtClaimsSet.Builder.claim(name, value)` and `claimNull(name)` methods have the same per-member
+semantics for custom claims: a repeated name throws, and registered names require their typed setters. These are the
+only per-item adders. There is no `JsonArray` builder: `JsonArray.fromElements(List)` takes the
 complete list.
+
+The signing operation `JwsSigner.fromHeaderAndClaims(header, claims)` immediately emits a signed compact JWT;
+`JwsSigner.withHeaderAndClaims(header, claims)` returns an operation builder whose `build()` emits that credential.
+These names follow the factory/builder convention and are explicit signed-credential emissions despite lacking a
+`toCompactSerialization` suffix. Their documentation must identify signing and credential release; their renderings
+remain redacted.
 
 Servlet-mandated and Soklet-mandated method names in the adapters remain unchanged.
 

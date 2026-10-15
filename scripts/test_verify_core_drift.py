@@ -278,28 +278,32 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(1, self.workflow.count("REVETSEC_CORE_SHA:"))
 
     def test_every_core_checkout_uses_the_pin_after_validating_it(self):
-        core_jobs = 0
-        for name, job in self.jobs().items():
-            if "repository: revetsec/revetsec" not in job:
-                continue
-            core_jobs += 1
+        core_jobs = {name: job for name, job in self.jobs().items()
+                     if "repository: revetsec/revetsec" in job}
+        self.assertEqual({"drift", "test", "static-analysis", "scim-container", "m12-container", "saml-container"},
+                         set(core_jobs))
+        for name, job in core_jobs.items():
             with self.subTest(job=name):
                 self.assertEqual(1, job.count("repository: revetsec/revetsec"))
-                self.assertIn("ref: ${{ env.REVETSEC_CORE_SHA }}", job)
+                self.assertEqual(1, job.count("ref: ${{ env.REVETSEC_CORE_SHA }}"))
                 self.assertIn(r'"$REVETSEC_CORE_SHA" =~ ^0{40}$', job)
+                self.assertIn(r'! "$REVETSEC_CORE_SHA" =~ ^[0-9a-f]{40}$', job)
                 self.assertLess(job.index("name: Validate the core pin"), job.index("repository: revetsec/revetsec"))
                 if "-f core/pom.xml" in job:
                     self.assertLess(job.index("rm -rf ~/.m2/repository/com/revetsec"), job.index("-f core/pom.xml"))
                     self.assertLess(job.index("-f core/pom.xml"), job.index("-f adapter/pom.xml"))
-        self.assertEqual(4, core_jobs)
 
     def test_core_is_installed_without_tests_or_javadoc(self):
-        installs = re.findall(r"mvn [^\n]*-f core/pom\.xml[^\n]*", self.workflow)
-        self.assertEqual(3, len(installs))
-        for install in installs:
-            self.assertIn("-DskipTests", install)
-            self.assertIn("-Dmaven.javadoc.skip=true", install)
-            self.assertTrue(install.endswith(" install"), install)
+        build_jobs = {name: job for name, job in self.jobs().items() if "-f core/pom.xml" in job}
+        self.assertEqual({"test", "static-analysis", "scim-container", "m12-container", "saml-container"},
+                         set(build_jobs))
+        for name, job in build_jobs.items():
+            with self.subTest(job=name):
+                installs = re.findall(r"mvn [^\n]*-f core/pom\.xml[^\n]*", job)
+                self.assertEqual(1, len(installs))
+                self.assertIn("-DskipTests", installs[0])
+                self.assertIn("-Dmaven.javadoc.skip=true", installs[0])
+                self.assertTrue(installs[0].endswith(" install"), installs[0])
 
     def test_never_overrides_the_declared_core_version(self):
         self.assertNotIn("-Drevetsec.version", self.workflow)

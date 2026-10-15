@@ -16,9 +16,9 @@ on:
 
 env:
   # ==================================================================================================
-  # Pushed M11 core baseline used by the SCIM adapter. Move the full SHA explicitly for later core changes.
+  # Pushed core baseline used by all adapter workflows. Move the full SHA explicitly for later core changes.
   # ==================================================================================================
-  REVETSEC_CORE_SHA: '348da72b82f2709c21e744791e33e2297b5d4b34'
+  REVETSEC_CORE_SHA: '30cf5833c4b784d205bbfc189815172da79de264'
 
 permissions:
   contents: read
@@ -110,8 +110,7 @@ jobs:
           --core-directory core
           --adapter-directory adapter
 
-  # Gating. Tier 0 only: the contract tests and ClaimsLintTests run inside `verify`. Javadoc is skipped until
-  # this adapter has its first public type.
+  # Gating. Contract tests and ClaimsLintTests run inside verify; this matrix skips the separate Javadoc build.
   test:
     name: Test (JDK ${{ matrix.jdk }})
     runs-on: ubuntu-24.04
@@ -273,5 +272,129 @@ jobs:
         with:
           name: scim-servlet-jakarta-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/scim-container-evidence/RESULT.json
+          if-no-files-found: error
+          retention-days: 14
+
+  m12-container:
+    name: M12 OAuth Bearer Issuer WebAuthn Real Servlet Container (JDK 21)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: drift
+    steps:
+      - name: Check out adapter
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: adapter
+          persist-credentials: false
+      - name: Validate the core pin
+        run: |
+          if [[ "$REVETSEC_CORE_SHA" =~ ^0{40}$ ]] || [[ ! "$REVETSEC_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=Invalid core pin::Pin a pushed full core SHA before qualification."
+            exit 1
+          fi
+      - name: Check out Revetsec core at the pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: revetsec/revetsec
+          ref: ${{ env.REVETSEC_CORE_SHA }}
+          path: core
+          persist-credentials: false
+      - name: Set up Corretto 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: corretto
+          java-version: '21'
+          cache: maven
+      - name: Build pinned core and adapter
+        run: |
+          rm -rf ~/.m2/repository/com/revetsec
+          mvn -B -ntp -f core/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
+          mvn -B -ntp -f adapter/pom.xml -Dmaven.javadoc.skip=true package
+      - name: Compile paired M12 cookbook sources
+        run: |
+          mvn -B -ntp -f core/examples/postgresql-pending-store/pom.xml -Dmaven.test.skip=true package
+          servlet_api_jar="$HOME/.m2/repository/jakarta/servlet/jakarta.servlet-api/6.1.0/jakarta.servlet-api-6.1.0.jar"
+          example_jar="core/examples/postgresql-pending-store/target/postgresql-pending-store-1.0.0-SNAPSHOT.jar"
+          test -f "$servlet_api_jar"
+          test -f "$example_jar"
+          mkdir -p "$RUNNER_TEMP/m12-recipes"
+          "$JAVA_HOME/bin/javac" --release 17 -proc:none -Xlint:all -Werror \
+            -cp "core/target/revetsec-1.0.0-SNAPSHOT.jar:adapter/target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar:$servlet_api_jar:$example_jar" \
+            -d "$RUNNER_TEMP/m12-recipes" \
+            adapter/docs/ServletWorkflowRecipes.java adapter/docs/ServletDurableBackendRecipe.java
+      - name: Download the reviewed Servlet runtime
+        run: |
+          url=$(python3 -c 'import json; print(json.load(open("adapter/verification/m12-container/runtime.json"))["url"])')
+          curl --fail --location --proto '=https' --tlsv1.2 "$url" --output "$RUNNER_TEMP/tomcat.tar.gz"
+      - name: Qualify M12 workflows in Tomcat
+        run: >-
+          python3 adapter/verification/m12-container/run.py
+          --tomcat-archive "$RUNNER_TEMP/tomcat.tar.gz"
+          --core-jar core/target/revetsec-1.0.0-SNAPSHOT.jar
+          --adapter-jar adapter/target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar
+          --java-home "$JAVA_HOME"
+          --output "$RUNNER_TEMP/m12-container-evidence"
+      - name: Upload redacted container receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: m12-servlet-jakarta-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/m12-container-evidence/RESULT.json
+          if-no-files-found: error
+          retention-days: 14
+
+  saml-container:
+    name: SAML Real Servlet Container (JDK 21)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: drift
+    steps:
+      - name: Check out adapter
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: adapter
+          persist-credentials: false
+      - name: Validate the core pin
+        run: |
+          if [[ "$REVETSEC_CORE_SHA" =~ ^0{40}$ ]] || [[ ! "$REVETSEC_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=Invalid core pin::Pin a pushed full core SHA before qualification."
+            exit 1
+          fi
+      - name: Check out Revetsec core at the pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: revetsec/revetsec
+          ref: ${{ env.REVETSEC_CORE_SHA }}
+          path: core
+          persist-credentials: false
+      - name: Set up Corretto 21
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: corretto
+          java-version: '21'
+          cache: maven
+      - name: Build pinned core and adapter
+        run: |
+          rm -rf ~/.m2/repository/com/revetsec
+          mvn -B -ntp -f core/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
+          mvn -B -ntp -f adapter/pom.xml -Dmaven.javadoc.skip=true package
+      - name: Download the reviewed Servlet runtime
+        run: |
+          url=$(python3 -c 'import json; print(json.load(open("adapter/verification/saml-container/runtime.json"))["url"])')
+          curl --fail --location --proto '=https' --tlsv1.2 "$url" --output "$RUNNER_TEMP/tomcat.tar.gz"
+      - name: Qualify signed SAML POST logout in Tomcat
+        run: >-
+          python3 adapter/verification/saml-container/run.py
+          --tomcat-archive "$RUNNER_TEMP/tomcat.tar.gz"
+          --core-jar core/target/revetsec-1.0.0-SNAPSHOT.jar
+          --adapter-jar adapter/target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar
+          --java-home "$JAVA_HOME"
+          --output "$RUNNER_TEMP/saml-container-evidence"
+      - name: Upload redacted container receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: saml-servlet-jakarta-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/saml-container-evidence/RESULT.json
           if-no-files-found: error
           retention-days: 14
