@@ -220,7 +220,7 @@ final class ServletM12TransportTests {
         StateSealer sealer = StateSealer.withActiveKey(SealingKey.fromBase64("key",
                 Base64.getEncoder().encodeToString(key))).build();
         WebAuthnRecoveryGate gate = remaining -> new WebAuthnRecoveryGate.Permit() {
-            @Override public boolean isCurrent() { return true; }
+            @Override public @NonNull Boolean isCurrent() { return true; }
             @Override public void close() { }
         };
         WebAuthnRelyingParty party = WebAuthnRelyingParty.withRelyingPartyId("login.example.com")

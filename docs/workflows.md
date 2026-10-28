@@ -10,8 +10,16 @@ These `jakarta.servlet` recipes pair with the `javax.servlet` recipes in the sib
 | SAML | `SokletSaml` | `ServletSaml` | `ServletSaml` | Paired SAML container fixtures |
 | SCIM | `SokletScim` | `ServletScim` | `ServletScim` | Paired SCIM container fixtures |
 | WebAuthn | Core API in the Soklet passkey demo | `ServletWebAuthn` | `ServletWebAuthn` | Soklet browser demo; paired source; M12 container fixture |
+| TOTP and recovery codes | Core API in the Soklet 4 TOTP application | Application-owned core calls | Application-owned core calls | [Paired Servlet TOTP cookbook](totp.md); pinned Tomcat fixture |
 
 The table maps integration paths and sources. A real-container result is established only by a successful source-bound runner receipt; the table itself is not a test result.
+
+The [TOTP and recovery-code recipe](totp.md) is a compilable application-owned Servlet
+integration for enrollment, login, recovery and management. Both Servlet namespaces
+use the same core API; no additional transport helper is required. Its dedicated
+Tomcat runner checks the actual HTTP boundary with synthetic primary authentication
+and volatile state. The separate core PostgreSQL TOTP runner exercises one-host
+durable storage and application pending-login fencing.
 
 ## Build and compile the paired source
 

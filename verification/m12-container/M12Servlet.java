@@ -73,7 +73,7 @@ public final class M12Servlet extends HttpServlet {
             StateSealer sealer = StateSealer.withActiveKey(SealingKey.fromBase64("m12",
                     Base64.getEncoder().encodeToString(material))).build();
             WebAuthnRecoveryGate gate = remaining -> new WebAuthnRecoveryGate.Permit() {
-                @Override public boolean isCurrent() { return true; }
+                @Override public Boolean isCurrent() { return true; }
                 @Override public void close() { }
             };
             this.relyingParty = WebAuthnRelyingParty.withRelyingPartyId(M12Authenticator.RP)
