@@ -144,6 +144,8 @@ Revetsec's security invariants are published in this section as the code that up
 - **INV-W1** WebAuthn registration and assertion verification bind the exact RP ID, origin, challenge, browser ceremony, user presence, user verification and credential signature.
 - **INV-W2** Ceremonies are single use and account-bound; sensitive reauthentication requires the expected ceremony kind, user handle and action purpose.
 - **INV-W3** Credential transitions use conditional store writes and a recovery admission gate; unknown outcomes do not release authentication proof.
+- **INV-SEC1** New password hashes use bounded Argon2id work; stored parameters are checked before KDF work, pepper policy fails closed, and legacy bcrypt/PBKDF2 paths verify only.
+- **INV-SEC5** Confirmed TOTP factors and one-use recovery codes use atomic, epoch-fenced transitions; uncertain or stale-gate outcomes release no factor proof or recovery plaintext.
 - **INV-S1** SAML XML parsing refuses DTDs and verification reads the original parsed DOM.
 - **INV-S2** Successful SAML Responses have exactly one direct Assertion or EncryptedAssertion and no hidden second assertion.
 - **INV-S3** Duplicate IDs are rejected document-wide; the selected signature target must resolve to its exact DOM node.

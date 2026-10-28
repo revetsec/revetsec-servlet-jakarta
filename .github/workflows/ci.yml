@@ -18,7 +18,7 @@ env:
   # ==================================================================================================
   # Pushed core baseline used by all adapter workflows. Move the full SHA explicitly for later core changes.
   # ==================================================================================================
-  REVETSEC_CORE_SHA: '30cf5833c4b784d205bbfc189815172da79de264'
+  REVETSEC_CORE_SHA: '29393b77c97390c1bca42b574d467745f6d08a85'
 
 permissions:
   contents: read
@@ -396,5 +396,118 @@ jobs:
         with:
           name: saml-servlet-jakarta-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/saml-container-evidence/RESULT.json
+          if-no-files-found: error
+          retention-days: 14
+
+  totp-container:
+    name: TOTP Real Servlet Container (JDK 17)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: drift
+    steps:
+      - name: Check out adapter
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: adapter
+          persist-credentials: false
+      - name: Validate the core pin
+        run: |
+          if [[ "$REVETSEC_CORE_SHA" =~ ^0{40}$ ]] || [[ ! "$REVETSEC_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=Invalid core pin::Pin a pushed full core SHA before qualification."
+            exit 1
+          fi
+      - name: Check out Revetsec core at the pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: revetsec/revetsec
+          ref: ${{ env.REVETSEC_CORE_SHA }}
+          path: core
+          persist-credentials: false
+      - name: Set up Corretto 17
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: corretto
+          java-version: '17'
+          cache: maven
+      - name: Build pinned core and adapter
+        run: |
+          rm -rf ~/.m2/repository/com/revetsec
+          mvn -B -ntp -f core/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
+          mvn -B -ntp -f adapter/pom.xml -Dmaven.javadoc.skip=true package
+      - name: Download the reviewed Servlet runtime
+        run: |
+          url=$(python3 -c 'import json; print(json.load(open("adapter/verification/m12-container/runtime.json"))["url"])')
+          curl --fail --location --proto '=https' --tlsv1.2 "$url" --output "$RUNNER_TEMP/tomcat.tar.gz"
+      - name: Qualify TOTP and recovery routes in Tomcat
+        run: >-
+          python3 adapter/verification/totp-container/run.py
+          --tomcat-archive "$RUNNER_TEMP/tomcat.tar.gz"
+          --core-jar core/target/revetsec-1.0.0-SNAPSHOT.jar
+          --adapter-jar adapter/target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar
+          --java-home "$JAVA_HOME"
+          --output "$RUNNER_TEMP/totp-container-evidence"
+      - name: Upload redacted container receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: totp-servlet-jakarta-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/totp-container-evidence/RESULT.json
+          if-no-files-found: error
+          retention-days: 14
+
+  jwks-container:
+    name: JWKS Real Servlet Container (JDK 17)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: drift
+    steps:
+      - name: Check out adapter
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: adapter
+          persist-credentials: false
+      - name: Validate the core pin
+        run: |
+          if [[ "$REVETSEC_CORE_SHA" =~ ^0{40}$ ]] || [[ ! "$REVETSEC_CORE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error title=Invalid core pin::Pin a pushed full core SHA before qualification."
+            exit 1
+          fi
+      - name: Check out Revetsec core at the pin
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: revetsec/revetsec
+          ref: ${{ env.REVETSEC_CORE_SHA }}
+          path: core
+          persist-credentials: false
+      - name: Set up Corretto 17
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: corretto
+          java-version: '17'
+          cache: maven
+      - name: Build pinned core and adapter
+        run: |
+          rm -rf ~/.m2/repository/com/revetsec
+          mvn -B -ntp -f core/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
+          mvn -B -ntp -f adapter/pom.xml -Dmaven.javadoc.skip=true package
+      - name: Download the reviewed Servlet runtime
+        run: |
+          url=$(python3 -c 'import json; print(json.load(open("adapter/verification/m12-container/runtime.json"))["url"])')
+          curl --fail --location --proto '=https' --tlsv1.2 "$url" --output "$RUNNER_TEMP/tomcat.tar.gz"
+      - name: Qualify JWKS publication in Tomcat
+        run: >-
+          python3 adapter/verification/jwks-container/run.py
+          --tomcat-archive "$RUNNER_TEMP/tomcat.tar.gz"
+          --core-jar core/target/revetsec-1.0.0-SNAPSHOT.jar
+          --core-source core
+          --adapter-jar adapter/target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar
+          --java-home "$JAVA_HOME"
+          --output "$RUNNER_TEMP/jwks-container-evidence"
+      - name: Upload redacted container receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: jwks-servlet-jakarta-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/jwks-container-evidence/RESULT.json
           if-no-files-found: error
           retention-days: 14

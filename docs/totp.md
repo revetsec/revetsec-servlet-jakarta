@@ -108,6 +108,6 @@ python3 verification/totp-container/run.py \
   --output /private/tmp/revetsec-totp-jakarta-evidence
 ```
 
-The current hosted adapter CI core pin predates TOTP. After the owner pushes
-the updated core, advance that pin and run hosted checks; the local runner's
-receipt does not imply hosted CI has passed.
+The adapter CI workflow now runs this Tomcat fixture against its pinned core
+checkout. Run hosted checks after pushing this adapter change; the local
+runner's receipt does not imply hosted CI has passed.
