@@ -144,7 +144,7 @@ final class ServletJwksTests {
 		KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
 		generator.initialize(2_048);
 		return JwksPublisher.withKeys(List.of(PublishedJwk.withPublicKey(generator.generateKeyPair().getPublic())
-				.keyId("epic-prod").algorithm(JwsAlgorithm.RS384).build())).cacheLifetime(Duration.ofHours(1)).build();
+				.keyId("epic-prod").algorithm(JwsAlgorithm.RS384).build())).httpCacheMaxAge(Duration.ofHours(1)).build();
 	}
 
 	private static @NonNull HttpServletRequest request(@NonNull String method,

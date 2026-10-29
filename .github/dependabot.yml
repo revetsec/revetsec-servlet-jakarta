@@ -9,6 +9,11 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      build-and-test-tooling:
+        patterns: ["*"]
+        exclude-patterns: ["com.revetsec:*", "jakarta.servlet:jakarta.servlet-api"]
+        update-types: ["minor", "patch"]
     ignore:
       # Core is built from the commit pinned in .github/workflows/ci.yml (REVETSEC_CORE_SHA), not
       # resolved from a repository, and scripts/verify-core-drift.py ties revetsec.version to it.
@@ -26,3 +31,7 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      github-actions:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]

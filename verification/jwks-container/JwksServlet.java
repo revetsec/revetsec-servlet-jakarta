@@ -46,7 +46,7 @@ public final class JwksServlet extends HttpServlet {
             X509Certificate root = certificate("/publisher-root.pem");
             return JwksPublisher.withKeys(List.of(PublishedJwk.withPublicKey(leaf.getPublicKey())
                     .keyId("epic-prod").algorithm(JwsAlgorithm.RS384).certificateChain(List.of(leaf, root)).build()))
-                    .cacheLifetime(Duration.ofHours(1)).build();
+                    .httpCacheMaxAge(Duration.ofHours(1)).build();
         } catch (GeneralSecurityException | IOException failure) {
             throw new IllegalStateException("Unable to load public test certificate chain", failure);
         }
