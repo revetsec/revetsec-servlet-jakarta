@@ -192,7 +192,7 @@ final class ServletSamlTests {
         generator.initialize(2048);
         SamlServiceProvider sp = SamlServiceProvider.withEntityId("https://sp.example.test")
                 .assertionConsumerServiceUrl(URI.create("https://sp.example.test/acs"))
-                .replayCache(InMemorySamlReplayCache.withLimit(clock, 4)).clock(clock).build();
+                .replayCache(InMemorySamlReplayCache.fromLimit(clock, 4)).clock(clock).build();
         SamlIdentityProvider idp = SamlIdentityProvider.withEntityId("https://idp.example.test")
                 .connectionId("test")
                 .redirectSingleSignOnService(URI.create("https://idp.example.test/sso"))

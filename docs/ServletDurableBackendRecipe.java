@@ -75,23 +75,29 @@ public final class ServletDurableBackendRecipe {
                 PendingAuthorizationSource.fromStore(store, browserBinding), configuredCallback, untrusted);
     }
 
-    /** The host also supplies registered clients, signing keys, persistent sealer, routes and policy. */
+    /**
+     * The host also supplies registered clients, signing keys, persistent sealer, routes and policy.
+     * Provision the separate issuer schema, admission tuple, root-activation metadata and escrows.
+     * The physical namespace has an explicit independent authority; worker time never supplies it.
+     */
     public static OAuthAuthorizationServer.Builder withIssuerStore(
-            OAuthAuthorizationServer.Builder configured, String namespace,
-            PrimaryConnectionSource primary, int maximumEntries) {
-        return configured.store(new PostgresqlIssuerStore(namespace, primary::open, maximumEntries));
+            OAuthAuthorizationServer.Builder configured, String namespace, String physicalNamespaceId,
+            PrimaryConnectionSource primary, int maximumEntries, PostgresqlIssuerStore.Authority authority) {
+        return configured.store(new PostgresqlIssuerStore(namespace, physicalNamespaceId, primary::open, maximumEntries, authority));
     }
 
     /**
      * The host first sets its trusted RP ID and exact HTTPS origins on configured. The persistent
-     * sealer and external recovery gate must be shared by every node using this namespace.
+     * sealer and external recovery gate must be shared by every node using this namespace. The
+     * physical scope must be provisioned with the exact admission tuple, time profile and capacity
+     * buckets. Authority is a trusted source separate from the worker clock; no clock bridge is supplied.
      */
     public static WebAuthnRelyingParty.Builder withWebAuthnStore(
-            WebAuthnRelyingParty.Builder configured, String namespace,
-            PrimaryConnectionSource primary, int maximumEntries,
+            WebAuthnRelyingParty.Builder configured, String namespace, String physicalNamespaceId,
+            PrimaryConnectionSource primary, int maximumEntries, PostgresqlWebAuthnStore.Authority authority,
             StateSealer persistentSealer, WebAuthnRecoveryGate externalRecoveryGate) {
         return configured.credentialNamespace(namespace)
-                .store(new PostgresqlWebAuthnStore(namespace, primary::open, maximumEntries))
+                .store(new PostgresqlWebAuthnStore(namespace, physicalNamespaceId, primary::open, maximumEntries, authority))
                 .stateSealer(persistentSealer).recoveryGate(externalRecoveryGate);
     }
 }

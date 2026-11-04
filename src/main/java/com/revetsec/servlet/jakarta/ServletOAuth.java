@@ -41,10 +41,12 @@ public final class ServletOAuth {
     private ServletOAuth() { }
 
     /** Parses the original GET query or bounded POST form without Servlet parameter decoding.
+     * Other methods, including HEAD, return Rejected without reading query, headers or body.
+     * The application selects the HTTP response (for example, a route-level 405) and must not
+     * load or consume pending login state for that rejection.
      * @param request application-routed callback request
      * @return parsed, rejected or oversized callback outcome
      * @throws IOException if the Servlet input stream fails
-     * @throws IllegalArgumentException if the route uses neither GET nor POST
      * @since 1.0.0
      */
     @CheckReturnValue
@@ -57,7 +59,7 @@ public final class ServletOAuth {
             return ServletOAuthCallbackResult.fromParseResult(AuthorizationResponse.fromQueryStringResult(query == null ? "" : query));
         }
         if (!"POST".equals(method))
-            throw new IllegalArgumentException("OAuth callback route must use GET or POST");
+            return ServletOAuthCallbackResult.fromRejected();
         byte[] body = request.getInputStream().readNBytes(MAXIMUM_CALLBACK_BODY_BYTES + 1);
         if (body.length > MAXIMUM_CALLBACK_BODY_BYTES) return ServletOAuthCallbackResult.fromTooLarge();
         List<String> contentTypes = new ArrayList<>(2);

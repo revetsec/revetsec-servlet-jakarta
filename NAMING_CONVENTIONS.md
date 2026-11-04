@@ -18,6 +18,12 @@ It is adapted from Soklet's naming conventions. Revetsec core and each Revetsec 
 - **Builder convenience:** when a `withX(...)` builder is commonly used with only required inputs, add a `fromX(...)` convenience that calls `withX(...).build()`.
 - **Shared singletons and presets:** prefer names that include `Instance` (e.g., `defaultInstance()`, `disabledInstance()`, `microsoftEntraIdInstance()`), but this is not a hard requirement if readability benefits.
 - **Defaults (fresh):** use `fromDefaults()` for a new instance configured with defaults.
+- **Explicit state scope:** selecting a volatile, process-local storage or admission backend must say
+  `InMemory` in its type or factory name (for example, `PasswordWorkGate.fromInMemoryLimits(...)`).
+  Expose relevant capacity settings. Required backend properties must be selected explicitly; clearing
+  one must never silently substitute local storage. Reviewed per-client JWKS/discovery caches remain
+  bounded local retrieval optimizations, with their scope and settings documented; they do not replace
+  authoritative shared state or cross-node attempt admission.
 - **Per-request variants:** an immutable configured object that needs a per-request variant offers `copy()`, which returns a `Copier`; `finish()` returns the new instance.
 - **Builder setters:** prefer property-name methods (`clientId(...)`, `redirectUri(...)`).
   Collection and map properties accept complete values, snapshot them before assignment, and replace previous values.

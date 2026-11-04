@@ -343,6 +343,13 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("Python optimization disables qualification assertions", result.stderr)
 
+    def test_m12_runs_planted_defect_calibration_and_keeps_receipts(self):
+        job = self.jobs()["m12-container"]
+        self.assertIn("python3 adapter/verification/m12-container/calibrate.py", job)
+        self.assertIn("m12-container-evidence/CALIBRATION.json", job)
+        self.assertIn("m12-container-evidence/positive/RESULT.json", job)
+        self.assertIn("m12-container-evidence/mutants/*/RESULT.json", job)
+
     def test_every_action_is_pinned_to_a_commit(self):
         uses = re.findall(r"uses: ([^\s]+)", self.workflow)
         self.assertTrue(uses)

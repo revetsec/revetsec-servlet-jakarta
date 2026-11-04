@@ -67,11 +67,15 @@ browser storage and third-party assets. The app provides validated Secure,
 HttpOnly, SameSite cookies only after confirmed login completion.
 
 `Rejected` becomes a generic 403, `Throttled` a 429 with a bounded
-`Retry-After`, and `Unavailable` or `Indeterminate` a 503. An indeterminate
-enrollment or management mutation calls the app's reconciliation hook and
-releases no setup secret or new recovery plaintext. An uncertain verification
-or recovery-code consumption creates no session; a later attempt needs a fresh
-code or approved alternate path. A proven TOTP step or recovery code may be
+`Retry-After`, and `Unavailable`, `Indeterminate` or
+`ReconciliationRequired` a no-store 503 without `Retry-After`.
+`Indeterminate` means uncertain mutation effects; `ReconciliationRequired`
+means the requested transition is known committed but normal output was
+withheld. The recipe handles each explicitly and calls the app's reconciliation
+hook without releasing setup secrets, recovery plaintext or authentication
+proof. Verification or recovery-code consumption requiring reconciliation
+creates no session; a later attempt needs a fresh code or approved alternate
+path. A proven TOTP step or recovery code may be
 consumed even when a later app transaction or HTTP delivery fails. Do not
 translate an uncertain commit into success or retry it blindly.
 
@@ -89,9 +93,13 @@ mkdir -p /private/tmp/revetsec-jakarta-totp-recipe
 
 The [private Tomcat runner](../verification/totp-container/run.py) compiles a
 disposable Java 17 application, binds Tomcat 11 to loopback and exercises the
-actual Servlet request/response path. The runner verifies the checksum-pinned
-runtime, records the exact source and JAR hashes, and stops only its owned
-process. It is transport and example qualification, not production session,
+actual Servlet request/response path. A scripted store authority and worker
+clock advance through separate explicit fixture controls. The runner separately
+checks a known recovery-code commitment followed by final-read failure and a
+lost commit acknowledgement: both withhold cookies and secrets with the same
+generic 503, while trusted fixture handling distinguishes reconciliation. The
+runner verifies the checksum-pinned runtime, records the exact source and JAR
+hashes, and stops only its owned process. It is transport and example qualification, not production session,
 durable store or distributed recovery qualification. Its synthetic pending
 login omits fixed expiry and factor-generation pinning; those checks are
 covered in the separate
@@ -111,3 +119,7 @@ python3 verification/totp-container/run.py \
 The adapter CI workflow now runs this Tomcat fixture against its pinned core
 checkout. Run hosted checks after pushing this adapter change; the local
 runner's receipt does not imply hosted CI has passed.
+
+## Initialization and maintenance outcomes
+
+The same explicit reconciliation handling applies to `TotpNamespaceInitializationResult` and `TotpStoreResealResult`, in addition to the seven route result families in the compilable recipe. Do not map their `ReconciliationRequired` branches to successful readiness. The host keeps application admission closed until its recovery controller and a fresh admitted operation confirm readiness; it never treats a raw store receipt or a matching later row as delivery of a lost secret or proof. Keep these management/maintenance branches separate from pure status queries, which have no mutation-uncertainty or reconciliation variant.

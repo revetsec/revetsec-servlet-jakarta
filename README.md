@@ -6,7 +6,7 @@ Revetsec helpers for applications on the `jakarta.servlet` API.
 
 ### What Is It?
 
-[Revetsec](https://github.com/revetsec/revetsec) is a zero-dependency Java library for OAuth 2.0 clients and resource servers, OpenID Connect relying parties, JOSE, SAML 2.0 service providers and SCIM 2.0 servers. Its core has no framework dependency: it parses raw query strings, form bodies and header values.
+[Revetsec](https://github.com/revetsec/revetsec) is a zero-dependency Java library for OAuth 2.0 clients and resource servers, OpenID Connect relying parties, JOSE, SAML 2.0 service providers (SPs) and SCIM 2.0 servers. Its core has no framework dependency: it parses raw query strings, form bodies and header values.
 
 This adapter connects Revetsec core to the Servlet API. Its helpers pass an `HttpServletRequest` to Revetsec core as raw input, and write Revetsec results to an `HttpServletResponse`. They apply bounded transport checks for method, media type, body size and redirect shape; core makes protocol and credential validation decisions.
 
@@ -14,10 +14,10 @@ This adapter is for the `jakarta.servlet` API. For the legacy `javax.servlet` AP
 
 The helpers are static classes:
 
-- `ServletOAuth`: the authorization response of an OAuth or OpenID Connect callback, from a GET query or a POST form, and redirect responses
+- `ServletOAuth`: the authorization response of an OAuth or OpenID Connect callback, from a GET query or a POST form, controlled rejection of other methods (including HEAD), and redirect responses
 - `ServletBearer`: a request's bearer token, for resource servers
-- `ServletOAuthAuthorizationServer`: raw issuer authorization, token, revocation and introspection input and exact core-prepared response writing
-- `ServletSaml`: bounded original-body and raw-query SAML parsing, plus exact HTTPS redirect and prepared authentication/logout POST-form responses
+- `ServletOAuthAuthorizationServer`: bounded raw issuer authorization, token, revocation and introspection input, controlled core rejection at the header-name cutoff, and exact core-prepared response writing
+- `ServletSaml`: bounded original-body, Content-Type and raw-query SAML parsing, plus exact HTTPS redirect and prepared authentication/logout POST-form responses
 - `ServletScim`: a SCIM request's query, body and precondition headers, and the response for a SCIM result
 - `ServletWebAuthn` and `ServletWebAuthnBodyResult`: bounded original JSON ceremony bodies and prepared browser request output
 
@@ -76,11 +76,32 @@ dependencies {
 
 Standalone public-key publication without an OAuth authorization server is available through `ServletJwks`; see the [JWKS usage guide](docs/jwks.md) for RS384, certificate chains and other supported algorithms.
 
+### Shared authoritative-store integration
+
+Use matching core and adapter versions for store-backed workflows. Implement
+core's store and recovery contracts in your application, including authoritative
+time, atomic transitions and recovery admission. Adapters translate HTTP input
+and prepared responses; they do not provide durable storage or a recovery controller.
+
+Handle an uncertain write separately from a confirmed transition whose output
+cannot be released. Both outcomes withhold credentials and authentication proof;
+neither permits replaying the operation to recover lost output. See the
+[shared-store contracts](https://github.com/revetsec/revetsec/blob/main/docs/shared-clock-stores.md)
+for result handling and coordinated recovery.
+
 ### Status
 
-This adapter is **pre-release**, like Revetsec core. `ServletSaml` passes the original POST body, every Content-Type value and raw Redirect query to core, and writes prepared redirects/forms. The application selects IdPs, sessions, cookies and CSP. SCIM raw query/projection/conditional helpers, bounded body reads and exact prepared response writing are available through `ServletScim` and `ServletScimBodyResult`. OAuth, bearer, issuer and WebAuthn helpers are thin transport bridges; see the [paired workflow recipes](docs/workflows.md) for compiled source, concrete PostgreSQL reference-store wiring, explicit application duties and the M12 real-container runner. The [TOTP cookbook](docs/totp.md) uses the core authenticator directly and has a separate pinned Tomcat fixture; no TOTP-specific adapter API is needed. The [SCIM guide](docs/scim.md) and [SAML guide](docs/saml.md) document their separate container runners.
+The SAML helpers pass the original body, Content-Type occurrences and raw
+Redirect query to core and write prepared redirects or forms. The application
+selects identity providers (IdPs), sessions, cookies and CSP. SCIM helpers
+preserve raw queries and body bytes and write prepared responses.
 
-Revetsec has not been independently audited. That includes this adapter. Its security evidence is meant to be reproducible by anyone and will be listed in the [`docs/`](https://github.com/revetsec/revetsec/tree/main/docs) directory of the core repository as it is produced. Servlet helper unit and real-container qualification can be rerun locally; release interoperability and independent assurance gates remain tracked in core.
+See the [workflow recipes](docs/workflows.md) for routes and PostgreSQL storage
+wiring, and the [SAML](docs/saml.md) and [SCIM](docs/scim.md) guides for protocol
+integration. The [TOTP cookbook](docs/totp.md) calls core directly from
+application-owned Servlet routes.
+
+Revetsec has not been independently audited. That includes this adapter.
 
 To report a vulnerability, see [SECURITY.md](SECURITY.md).
 

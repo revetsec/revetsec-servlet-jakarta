@@ -1,6 +1,9 @@
 # SAML HTTP-POST logout transport
 
-Route ACS POST input through `ServletSaml.postBindingResultFor(request)` and logout POST input through `ServletSaml.postLogoutBindingResultFor(request)`. Call these before any servlet parameter parser consumes the original body. Both helpers preserve every Content-Type value and the raw query; core rejects ambiguous binding fields. The ACS parser accepts only `SAMLResponse`; the logout parser accepts one `SAMLRequest` or `SAMLResponse` and exposes its untrusted kind.
+The application acts as the service provider (SP), connecting to an approved
+identity provider (IdP).
+
+Route ACS POST input through `ServletSaml.postBindingResultFor(request)` and logout POST input through `ServletSaml.postLogoutBindingResultFor(request)`. Call these before any servlet parameter parser consumes the original body. Both helpers read at most the first two Content-Type occurrences and preserve the raw query. Core requires exactly one supported value; a second occurrence, including an identical duplicate, returns `Rejected`/`CONTENT_TYPE` before body access. The adapter does not probe or read any further header values once two are observed, and never accepts a truncated single-value prefix. Valid single-header requests retain original form bytes and existing body limits; missing or unsupported media types still reject. Trusted edge/container framing, allocation and time limits must apply before these materialized values reach the helper. Core rejects ambiguous binding fields. The ACS parser accepts only `SAMLResponse`; the logout parser accepts one `SAMLRequest` or `SAMLResponse` and exposes its untrusted kind.
 
 On an ACS completion, establish an application login session only for core's successful authentication result. Rotate the application session ID before binding the authenticated account to it. A rejected, unavailable or indeterminate result grants no session.
 

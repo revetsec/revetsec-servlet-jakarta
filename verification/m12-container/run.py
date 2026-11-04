@@ -15,11 +15,13 @@
 
 """Qualify OAuth, bearer, issuer and WebAuthn through the Jakarta adapter in real Tomcat."""
 import argparse
+import ast
 import base64
 import hashlib
 import http.client
 import json
 import os
+import signal
 from pathlib import Path
 import secrets
 import shutil
@@ -39,31 +41,56 @@ def sha(path, kind="sha256"):
     return digest.hexdigest()
 
 
+def failure_details(failure):
+    label = str(failure) if isinstance(failure, AssertionError) else ""
+    tree = ast.parse(Path(__file__).read_text())
+    known = {node.msg.value for node in ast.walk(tree) if isinstance(node, ast.Assert)
+             and isinstance(node.msg, ast.Constant) and isinstance(node.msg.value, str)}
+    if label in known:
+        return {"failureKind": "assertion", "failedCheck": label, "failure": label}
+    return {"failureKind": "infrastructure", "failedCheck": None, "failure": type(failure).__name__}
+
+
+def terminated(signum, frame):
+    raise InterruptedError("qualification-terminated")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    if not __debug__: parser.error("Python optimization disables qualification assertions")
     parser.add_argument("--tomcat-archive", required=True, type=Path)
     parser.add_argument("--core-jar", required=True, type=Path)
     parser.add_argument("--adapter-jar", required=True, type=Path)
     parser.add_argument("--java-home", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--work-parent", type=Path, help="Private temporary-instance parent used by calibration")
     args = parser.parse_args()
+    signal.signal(signal.SIGTERM, terminated)
+    if args.work_parent is not None: args.work_parent.mkdir(parents=True, exist_ok=True)
     fixture = Path(__file__).resolve().parent
     pins = json.loads((fixture / "runtime.json").read_text())
     if sha(args.tomcat_archive, "sha512") != pins["archiveSha512"]:
         raise SystemExit("Tomcat archive does not match the reviewed pin")
+    annotations = [Path.home() / ".m2/repository/org/jspecify/jspecify/1.0.1/jspecify-1.0.1.jar",
+                   Path.home() / ".m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar"]
+    if not all(path.is_file() for path in annotations): parser.error("Pinned annotation JARs are required in the local Maven cache")
     receipt = {"runtime": pins["version"], "archiveSha512": pins["archiveSha512"],
                "coreJarSha256": sha(args.core_jar), "adapterJarSha256": sha(args.adapter_jar),
-               "checks": [], "success": False, "ownedProcessStopped": False}
+               "annotationArtifacts": {str(p): sha(p) for p in annotations},
+               "checks": [], "success": False, "ownedProcessStopped": False,
+               "runtimeReady": False, "stage": "prepare", "privateInstanceRemoved": False}
     repo = fixture.parent.parent
     inputs = (sorted((repo / "src/main/java").rglob("*.java"))
               + sorted(fixture.glob("*.java"))
-              + [repo / "pom.xml", Path(__file__), fixture / "runtime.json"])
+              + sorted(fixture.glob("*.py"))
+              + [repo / "pom.xml", fixture / "runtime.json", repo / "verification/nullability/NullabilityAudit.java"])
     receipt["sourceInputs"] = {str(path.relative_to(repo)): sha(path) for path in inputs}
     checks = receipt["checks"]
     args.output.mkdir(parents=True, exist_ok=True)
     process = None
+    root = None
     try:
-        with tempfile.TemporaryDirectory(prefix="revetsec-m12-tomcat-") as temporary:
+        with tempfile.TemporaryDirectory(prefix="revetsec-m12-tomcat-", dir=args.work_parent) as temporary:
             root = Path(temporary)
             with tarfile.open(args.tomcat_archive) as archive:
                 # Reviewed official archive is additionally confined to this private root.
@@ -83,13 +110,31 @@ def main():
             shutil.copyfile(args.adapter_jar, jars / "adapter.jar")
             if sha(jars / "core.jar") != receipt["coreJarSha256"] or sha(jars / "adapter.jar") != receipt["adapterJarSha256"]:
                 raise RuntimeError("input artifact changed before private copy")
-            compilation = subprocess.run([str(args.java_home / "bin/javac"), "--release", "17", "-d", str(classes),
-                "-cp", os.pathsep.join(map(str, [args.core_jar, args.adapter_jar, home / "lib/servlet-api.jar"])),
+            receipt["stage"] = "fixture-compilation"
+            compilation = subprocess.run([str(args.java_home / "bin/javac"), "--release", "17", "-proc:none", "-Xlint:all,-serial", "-Werror", "-d", str(classes),
+                "-cp", os.pathsep.join(map(str, [args.core_jar, args.adapter_jar, home / "lib/servlet-api.jar", *annotations])),
                 *map(str, sorted(fixture.glob("*.java")))], capture_output=True, text=True)
             if compilation.returncode:
                 raise RuntimeError("M12 fixture compilation failed: " + compilation.stderr[:4000])
-            checks.append("paired-m12-fixture-compiled-release17")
+            receipt["fixtureClassfiles"] = {str(path.relative_to(classes)): sha(path) for path in sorted(classes.rglob("*.class"))}
+            checks.append("paired-m12-fixture-warning-fatal-release17-compiled")
+            receipt["stage"] = "nullability-audit"
+            audit_classes = root / "audit-classes"; audit_classes.mkdir()
+            auditor = repo / "verification/nullability/NullabilityAudit.java"
+            audit_build = subprocess.run([str(args.java_home / "bin/javac"), "--release", "17", "-proc:none", "-Xlint:all", "-Werror",
+                "-cp", os.pathsep.join(map(str, annotations)), "-d", str(audit_classes), str(auditor)], capture_output=True, text=True)
+            if audit_build.returncode: raise RuntimeError("Nullability checker failed: " + audit_build.stderr[:4000])
+            (root / "audit-sources.txt").write_text("\n".join(str(fixture / name) for name in ("M12FaultStore.java", "M12IssuerStore.java", "M12IssuerFaultStore.java")) + "\n")
+            (root / "audit-classpath.txt").write_text(os.pathsep.join(map(str, [classes, args.core_jar, args.adapter_jar, home / "lib/servlet-api.jar", *annotations])) + "\n")
+            audit_run = subprocess.run([str(args.java_home / "bin/java"), "-cp", os.pathsep.join(map(str, [audit_classes, *annotations])), "NullabilityAudit",
+                str(root / "audit-sources.txt"), str(root / "audit-classpath.txt"), str(root / "nullability-audit.json")], capture_output=True, text=True)
+            if audit_run.returncode: raise RuntimeError("New fault helper nullability failed: " + audit_run.stderr[:4000])
+            audit = json.loads((root / "nullability-audit.json").read_text())
+            if audit["missing"] or audit["attribution_errors"]: raise RuntimeError("New fault helper nullability gaps")
+            receipt["faultHelperNullabilityAudit"] = {"checkedReferencePositions": audit["checked_reference_positions"], "missing": 0, "attributionErrors": 0}
+            checks.append("new-webauthn-fault-helper-explicit-nullability")
             (base / "webapps/ROOT/WEB-INF/web.xml").write_text('<web-app><servlet><servlet-name>m12</servlet-name><servlet-class>example.M12Servlet</servlet-class></servlet><servlet-mapping><servlet-name>m12</servlet-name><url-pattern>/m12/*</url-pattern></servlet-mapping></web-app>')
+            receipt["stage"] = "container-start"
             with socket.socket() as reservation:
                 reservation.bind(("127.0.0.1", 0)); port = reservation.getsockname()[1]
             (base / "conf/server.xml").write_text(f'<Server port="-1"><Service name="fixture"><Connector address="127.0.0.1" port="{port}" protocol="HTTP/1.1" connectionTimeout="2000" maxHttpRequestHeaderSize="16384" maxHeaderCount="128" maxParameterCount="64" maxPostSize="70000" maxSwallowSize="70000" maxConnections="16" maxThreads="4"/><Engine name="fixture" defaultHost="localhost"><Host name="localhost" appBase="webapps" autoDeploy="false" deployOnStartup="true" unpackWARs="false"/></Engine></Service></Server>')
@@ -128,6 +173,8 @@ def main():
                         pass
                     if time.monotonic() >= deadline: raise RuntimeError("bounded Tomcat readiness timeout")
                     time.sleep(0.1)
+                receipt["runtimeReady"] = True
+                receipt["stage"] = "checks"
                 checks.append("real-container-ready-loopback-only-private-credential")
                 assert request("GET", "/health", authenticated=False)[0] == 401, "private-fixture-gate"
                 session = request("GET", "/session/start")
@@ -172,6 +219,15 @@ def main():
                 assert metadata[1]["content-length"] == str(len(metadata[2])) and metadata[1]["cache-control"], "issuer-metadata-headers"
                 jwks = request("GET", "/as/jwks")
                 assert jwks[0] == 200 and len(json.loads(jwks[2])["keys"]) >= 1, "issuer-jwks"
+                # Below the header-name bound, core reaches its normal grant decision.
+                invalid_grant = b"grant_type=not_supported&client_id=m12-client"
+                under_bound = request("POST", "/as/token", invalid_grant, form)
+                assert under_bound[0] == 400 and under_bound[2] == b'{"error":"unsupported_grant_type"}', "adapter-issuer-header-control"
+                overflowing = request("POST", "/as/token", invalid_grant,
+                    form + [("X-Admission-" + str(index), "v") for index in range(65)])
+                assert overflowing[0] == 400 and overflowing[2] == b'{"error":"invalid_request"}' and overflowing[1].get("cache-control") == "no-store", "adapter-issuer-header-name-overflow"
+                checks.append("actual-adapter-issuer-header-admission-control-and-overflow")
+
                 query = urllib.parse.urlencode({"client_id": "m12-client", "response_type": "code",
                     "redirect_uri": "https://client.example/cb?original=%2f", "resource": "https://resource.example/mcp",
                     "code_challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
@@ -217,6 +273,46 @@ def main():
                 assert request("POST", "/as/token", token_form, form)[0] == 400, "issuer-code-replay"
                 checks.append("actual-issuer-metadata-jwks-code-token-introspection-revocation-and-ingress-rejections")
 
+                # Each fault follows actual code consumption, never a forged result carrier.
+                fault_responses = []
+                for mode in ("confirmed", "unknown"):
+                    fresh_begin = request("GET", "/as/authorize?" + query, headers=browser)
+                    assert fresh_begin[0] == 200, "issuer-fault-fresh-interaction"
+                    fresh_approved = request("POST", "/as/approve?interaction=" + fresh_begin[2].decode("ascii"), headers=browser)
+                    assert fresh_approved[0] == 303, "issuer-fault-real-code"
+                    fresh_code = urllib.parse.parse_qs(urllib.parse.urlsplit(fresh_approved[1]["location"]).query)["code"][0]
+                    fresh_form = urllib.parse.urlencode({"grant_type": "authorization_code", "client_id": "m12-client",
+                        "resource": "https://resource.example/mcp", "code": fresh_code,
+                        "code_verifier": "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+                        "redirect_uri": "https://client.example/cb?original=%2f"}).encode("ascii")
+                    assert request("POST", "/as/test/fault?mode=" + mode)[0] == 204, "issuer-private-fault-armed"
+                    failed = request("POST", "/as/token", fresh_form, form)
+                    assert failed[0] == 503 and failed[2] == b'{"error":"server_error"}', "issuer-effect-failure-generic503"
+                    assert "no-store" in failed[1]["cache-control"] and failed[1]["pragma"] == "no-cache", "issuer-effect-private-no-store"
+                    assert not any(name in failed[1] for name in ("location", "set-cookie", "retry-after")), "issuer-no-proof-cookie-redirect-or-retry"
+                    fault_responses.append((failed[0], failed[2], {k:failed[1].get(k) for k in ("cache-control", "pragma", "content-type", "content-length")}))
+                    facts = json.loads(request("GET", "/as/test/facts")[2])
+                    assert facts["backingVersionChanged"] is True, "issuer-consumed-code-version-provenance"
+                    assert facts["effects"] == (1 if mode == "confirmed" else 2), "issuer-real-committed-effects"
+                    assert facts["finalReads"] == 1 and facts["confirmed"] == 1, "issuer-trusted-confirmed-reason-and-minimum-read"
+                    assert facts["unknown"] == (0 if mode == "confirmed" else 1), "issuer-trusted-unknown-distinction"
+                    assert request("POST", "/as/token", fresh_form, form)[0] == 400, "issuer-withheld-code-consumption-replay-denied"
+                assert fault_responses[0] == fault_responses[1], "issuer-confirmed-and-unknown-wire-parity"
+                receipt["issuerCommitOutcomeFacts"] = facts
+                checks.append("genuine-issuer-code-consumption-confirmed-final-read-refusal-and-applied-unknown-generic-wire-parity")
+
+                # Isolate transport decisions from later core parsing or host method guards.
+                media = [("Content-Type", "application/json")]
+                transport = request("POST", "/wa/test/body", b"a" * 4096, media)
+                assert transport[0] == 200 and transport[2] == b"Read:4096", "adapter-webauthn-body-at-cap"
+                transport = request("POST", "/wa/test/body", b"a" * 4097, media)
+                assert transport[0] == 400 and transport[2] == b"Rejected", "adapter-webauthn-body-cap-plus-one"
+                transport = request("GET", "/wa/test/body", headers=media)
+                assert transport[0] == 400 and transport[2] == b"Rejected", "adapter-webauthn-body-method"
+                transport = request("POST", "/wa/test/body", b"{}", media + media)
+                assert transport[0] == 400 and transport[2] == b"Rejected", "adapter-webauthn-body-physical-duplicates"
+                checks.append("actual-adapter-webauthn-body-read-bound-method-and-multiplicity")
+
                 assert request("POST", "/wa/register/start")[0] == 403, "webauthn-start-session-required"
                 assert request("POST", "/wa/register/start", headers=wrong_origin)[0] == 403, "webauthn-start-origin-required"
                 assert request("POST", "/wa/register/start", headers=wrong_csrf)[0] == 403, "webauthn-start-csrf-required"
@@ -250,6 +346,29 @@ def main():
                 assert request("POST", "/wa/register/complete?ceremony=" + ceremony, b"{}", json_media + json_media + browser)[0] == 400, "webauthn-physical-content-type-duplicate"
                 assert request("POST", "/wa/register/complete?ceremony=" + ceremony, b"a" * 4097, json_media + browser)[0] == 400, "webauthn-body-cap-plus-one"
                 checks.append("actual-webauthn-registration-sign-in-reauthentication-replay-and-body-boundaries")
+                # Faults wrap actual RP-generated assertion consumption. They do not construct a proof
+                # or fabricate a store transaction; the helper checks private backing bytes/version.
+                failures = []
+                for counter, mode in [(3, "reconciliation"), (4, "unknown")]:
+                    started_fault = request("POST", "/wa/authenticate/start", headers=browser)
+                    assert started_fault[0] == 200, "fault-ceremony-start"
+                    options_fault = json.loads(started_fault[2])
+                    fault_assertion = request("GET", "/wa/test/assertion-response?challenge="
+                        + options_fault["publicKey"]["challenge"] + "&counter=" + str(counter))[2]
+                    assert request("POST", "/wa/test/fault?mode=" + mode)[0] == 204, "private-fault-arm"
+                    fault_path = "/wa/authenticate/complete?ceremony=" + options_fault["ceremonyId"]
+                    withheld = request("POST", fault_path, fault_assertion, json_media + browser)
+                    assert withheld[0] == 503 and withheld[2] == b"", "generic-withheld-webauthn-result"
+                    assert withheld[1].get("cache-control") == "no-store", "withheld-private-no-store"
+                    assert not any(name in withheld[1] for name in ("set-cookie", "location", "retry-after", "x-fixture-csrf")), "withheld-no-cookie-proof-redirect-retry-hint"
+                    facts = json.loads(request("GET", "/wa/test/facts")[2])
+                    assert facts == {"effects": counter - 2, "finalReads": 1, "reconciliation": 1,
+                                     "unknown": 0 if mode == "reconciliation" else 1}, "trusted-effect-and-explicit-variant-ground-truth"
+                    assert request("POST", fault_path, fault_assertion, json_media + browser)[0] == 400, "faulted-ceremony-remains-consumed"
+                    failures.append(withheld[2])
+                    checks.append("actual-webauthn-" + mode + "-consumption-withheld-wire-and-ground-truth")
+                assert failures[0] == failures[1], "known-and-unknown-wire-parity"
+                checks.append("known-commit-and-unknown-exact-generic-503-parity")
                 receipt["success"] = True
                 process.terminate()
                 try: process.wait(timeout=10)
@@ -257,18 +376,20 @@ def main():
                 receipt["ownedProcessStopped"] = process.poll() is not None
                 process = None
     except Exception as failure:
-        receipt["failure"] = str(failure)[:4000]
+        receipt.update(failure_details(failure))
     finally:
         if process is not None:
             process.terminate()
             try: process.wait(timeout=10)
             except subprocess.TimeoutExpired: process.kill(); process.wait(timeout=5)
             receipt["ownedProcessStopped"] = process.poll() is not None
-        if receipt["sourceInputs"] != {str(path.relative_to(repo)): sha(path) for path in inputs}:
-            receipt["success"] = False; receipt["failure"] = "source changed during qualification"
+        receipt["privateInstanceRemoved"] = root is not None and not root.exists()
+        receipt["sourceInputsStable"] = receipt["sourceInputs"] == {str(path.relative_to(repo)): sha(path) for path in inputs}
+        if not receipt["sourceInputsStable"]:
+            receipt.update(success=False, failure="source changed during qualification", failureKind="infrastructure", failedCheck=None)
         (args.output / "RESULT.json").write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n")
     print(json.dumps({"success": receipt["success"], "checks": len(checks), "ownedProcessStopped": receipt["ownedProcessStopped"]}))
-    if not receipt["success"] or not receipt["ownedProcessStopped"]:
+    if not receipt["success"] or not receipt["ownedProcessStopped"] or not receipt["privateInstanceRemoved"]:
         raise SystemExit(1)
 
 

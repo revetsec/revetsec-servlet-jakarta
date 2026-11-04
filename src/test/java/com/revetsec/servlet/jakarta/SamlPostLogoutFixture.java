@@ -80,7 +80,7 @@ final class SamlPostLogoutFixture {
                 .singleLogoutServiceUrl(URI.create("https://sp.example.test/logout"))
                 .postSingleLogoutServiceUrl(URI.create("https://sp.example.test/logout"))
                 .signingPrivateKey(spKey.getPrivate())
-                .replayCache(InMemorySamlReplayCache.withLimit(clock, 32)).clock(clock).build();
+                .replayCache(InMemorySamlReplayCache.fromLimit(clock, 32)).clock(clock).build();
         idp = SamlIdentityProvider.withEntityId("https://idp.example.test/saml")
                 .connectionId("test")
                 .redirectSingleSignOnService(URI.create("https://idp.example.test/sso"))

@@ -18,7 +18,6 @@ import com.revetsec.StateSealer;
 import com.revetsec.json.JsonArray;
 import com.revetsec.json.JsonObject;
 import com.revetsec.json.JsonString;
-import com.revetsec.totp.InMemoryTotpStore;
 import com.revetsec.totp.RecoveryCodeRotationResult;
 import com.revetsec.totp.RecoveryCodeUse;
 import com.revetsec.totp.RecoveryCodeUseResult;
@@ -37,6 +36,7 @@ import com.revetsec.totp.TotpStatus;
 import com.revetsec.totp.TotpStatusResult;
 import com.revetsec.totp.TotpStore;
 import com.revetsec.totp.TotpStoreCommitResult;
+import com.revetsec.totp.TotpStoreCommitReceipt;
 import com.revetsec.totp.TotpStoreKey;
 import com.revetsec.totp.TotpStoreReadResult;
 import com.revetsec.totp.TotpStoreWrite;
@@ -72,6 +72,7 @@ import org.jspecify.annotations.Nullable;
 
 /** Private, single-process HTTP qualification host; its primary-authentication route is synthetic. */
 @ThreadSafe
+@SuppressWarnings("serial") // This fixture's process-local collaborators are never serialized or restored.
 public final class TotpServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private static final @NonNull String ACCOUNT = "fixture-account";
@@ -85,11 +86,12 @@ public final class TotpServlet extends HttpServlet {
     private final @NonNull TotpAuthenticator totp;
     private @NonNull String factorId = "";
     private @NonNull String batchId = "";
+    private int reconciliations;
 
     public TotpServlet() {
         byte[] material = new byte[32];
         RANDOM.nextBytes(material);
-        this.store = new FaultStore(InMemoryTotpStore.withNamespace("fixture-totp", EPOCH).build());
+        this.store = new FaultStore(new ScriptedTotpStore("fixture-totp", EPOCH, Instant.parse("2026-10-16T12:00:00Z")));
         this.totp = TotpAuthenticator.withIssuer("Fixture")
                 .credentialNamespace("fixture-totp").recoveryEpoch(EPOCH).store(this.store)
                 .stateSealer(StateSealer.withActiveKey(SealingKey.fromBase64("fixture-key",
@@ -119,6 +121,18 @@ public final class TotpServlet extends HttpServlet {
             this.store.loseSecondCommitAcknowledgement();
             send(response, 204, null, false); return;
         }
+        if (path.equals("/test/reconciliation")) {
+            if (!post(request, response)) return;
+            this.reconciliations = 0;
+            this.store.refuseFinalReadAfterSecondCommit();
+            send(response, 204, null, false); return;
+        }
+        if (path.equals("/test/assert-reconciliation")) {
+            if (!post(request, response)) return;
+            // Private control assertion; protected responses never disclose commit facts.
+            if (this.reconciliations != 1) throw new IllegalStateException("Fixture reconciliation assertion failed");
+            send(response, 204, null, false); return;
+        }
         if (path.equals("/test/close")) {
             if (!post(request, response)) return;
             this.gate.open = false;
@@ -131,7 +145,8 @@ public final class TotpServlet extends HttpServlet {
         }
         if (path.equals("/test/advance")) {
             if (!post(request, response)) return;
-            this.clock.advance(); send(response, 204, null, false); return;
+            this.clock.advance(); this.store.delegate.advance(Duration.ofSeconds(30));
+            send(response, 204, null, false); return;
         }
         if (path.equals("/test/expire-on-close")) {
             if (!post(request, response)) return;
@@ -208,6 +223,10 @@ public final class TotpServlet extends HttpServlet {
                     .put("provisioningUri", enrollment.getProvisioningUri()).build(), false);
         } else if (result instanceof TotpEnrollmentRequestResult.Throttled throttled) {
             throttle(response, throttled.getRetryAfter());
+        } else if (result instanceof TotpEnrollmentRequestResult.ReconciliationRequired) {
+            // Trusted fixture handling records the variant; the wire remains generic.
+            this.reconciliations++;
+            send(response, 503, error("Temporarily unavailable"), false);
         } else if (result instanceof TotpEnrollmentRequestResult.Unavailable
                 || result instanceof TotpEnrollmentRequestResult.Indeterminate) {
             send(response, 503, error("Temporarily unavailable"), false);
@@ -229,6 +248,10 @@ public final class TotpServlet extends HttpServlet {
             send(response, 200, codes(success.getRecoveryCodes()), false);
         } else if (result instanceof TotpEnrollmentResult.Throttled throttled) {
             throttle(response, throttled.getRetryAfter());
+        } else if (result instanceof TotpEnrollmentResult.ReconciliationRequired) {
+            // Trusted fixture handling records the variant; the wire remains generic.
+            this.reconciliations++;
+            send(response, 503, error("Temporarily unavailable"), false);
         } else if (result instanceof TotpEnrollmentResult.Unavailable
                 || result instanceof TotpEnrollmentResult.Indeterminate) {
             send(response, 503, error("Temporarily unavailable"), false);
@@ -254,6 +277,10 @@ public final class TotpServlet extends HttpServlet {
                 } else send(response, 503, error("Temporarily unavailable"), false);
             } else if (result instanceof RecoveryCodeUseResult.Throttled throttled) {
                 throttle(response, throttled.getRetryAfter());
+            } else if (result instanceof RecoveryCodeUseResult.ReconciliationRequired) {
+                // Trusted fixture handling records the variant; the wire remains generic.
+                this.reconciliations++;
+                send(response, 503, error("Temporarily unavailable"), false);
             } else if (result instanceof RecoveryCodeUseResult.Unavailable
                     || result instanceof RecoveryCodeUseResult.Indeterminate) {
                 send(response, 503, error("Temporarily unavailable"), false);
@@ -270,6 +297,10 @@ public final class TotpServlet extends HttpServlet {
                 } else send(response, 503, error("Temporarily unavailable"), false);
             } else if (result instanceof TotpVerificationResult.Throttled throttled) {
                 throttle(response, throttled.getRetryAfter());
+            } else if (result instanceof TotpVerificationResult.ReconciliationRequired) {
+                // Trusted fixture handling records the variant; the wire remains generic.
+                this.reconciliations++;
+                send(response, 503, error("Temporarily unavailable"), false);
             } else if (result instanceof TotpVerificationResult.Unavailable
                     || result instanceof TotpVerificationResult.Indeterminate) {
                 send(response, 503, error("Temporarily unavailable"), false);
@@ -298,6 +329,10 @@ public final class TotpServlet extends HttpServlet {
         if (result instanceof TotpEnrollmentCancellationResult.Succeeded) {
             session.enrollmentId = "";
             send(response, 200, JsonObject.builder().put("cancelled", true).build(), false);
+        } else if (result instanceof TotpEnrollmentCancellationResult.ReconciliationRequired) {
+            // Trusted fixture handling records the variant; the wire remains generic.
+            this.reconciliations++;
+            send(response, 503, error("Temporarily unavailable"), false);
         } else if (result instanceof TotpEnrollmentCancellationResult.Unavailable
                 || result instanceof TotpEnrollmentCancellationResult.Indeterminate) {
             send(response, 503, error("Temporarily unavailable"), false);
@@ -312,6 +347,10 @@ public final class TotpServlet extends HttpServlet {
         if (result instanceof RecoveryCodeRotationResult.Succeeded success) {
             this.batchId = success.getRecoveryCodes().getBatchId();
             send(response, 200, codes(success.getRecoveryCodes()), false);
+        } else if (result instanceof RecoveryCodeRotationResult.ReconciliationRequired) {
+            // Trusted fixture handling records the variant; the wire remains generic.
+            this.reconciliations++;
+            send(response, 503, error("Temporarily unavailable"), false);
         } else if (result instanceof RecoveryCodeRotationResult.Unavailable
                 || result instanceof RecoveryCodeRotationResult.Indeterminate) {
             send(response, 503, error("Temporarily unavailable"), false);
@@ -327,6 +366,10 @@ public final class TotpServlet extends HttpServlet {
             this.factorId = ""; this.batchId = "";
             this.sessions.clear();
             send(response, 200, JsonObject.builder().put("removed", true).build(), false);
+        } else if (result instanceof TotpFactorRemovalResult.ReconciliationRequired) {
+            // Trusted fixture handling records the variant; the wire remains generic.
+            this.reconciliations++;
+            send(response, 503, error("Temporarily unavailable"), false);
         } else if (result instanceof TotpFactorRemovalResult.Unavailable
                 || result instanceof TotpFactorRemovalResult.Indeterminate) {
             send(response, 503, error("Temporarily unavailable"), false);
@@ -463,21 +506,27 @@ public final class TotpServlet extends HttpServlet {
             actual.getOutputStream().write(this.body.toByteArray());
         }
     }
-    /** Intentionally volatile fixture fault: delegate COMMIT, then lose its second acknowledgement. */
+    /** Test faults preserve known commitment separately from a lost acknowledgement. */
     private static final class FaultStore implements TotpStore {
-        private final @NonNull TotpStore delegate;
+        private final @NonNull ScriptedTotpStore delegate;
         private final @NonNull AtomicInteger remaining = new AtomicInteger();
-        private FaultStore(@NonNull TotpStore delegate) { this.delegate = delegate; }
+        private final @NonNull AtomicInteger finalReadAfter = new AtomicInteger();
+        private final @NonNull AtomicInteger refusedReads = new AtomicInteger();
+        private FaultStore(@NonNull ScriptedTotpStore delegate) { this.delegate = delegate; }
         private void loseSecondCommitAcknowledgement() { this.remaining.set(2); }
+        private void refuseFinalReadAfterSecondCommit() { this.finalReadAfter.set(2); }
         @Override public @NonNull TotpStoreReadResult read(
                 @NonNull Set<@NonNull TotpStoreKey> keys, @NonNull Duration budget) {
+            if (this.refusedReads.getAndSet(0) > 0) return TotpStoreReadResult.Unavailable.get();
             return this.delegate.read(keys, budget);
         }
-        @Override public @NonNull TotpStoreCommitResult compareAndCommit(
+        @Override public @NonNull TotpStoreCommitReceipt compareAndCommit(
                 @NonNull TotpStoreWrite write, @NonNull Duration budget) {
-            TotpStoreCommitResult result = this.delegate.compareAndCommit(write, budget);
-            if (result == TotpStoreCommitResult.COMMITTED && this.remaining.get() > 0
-                    && this.remaining.decrementAndGet() == 0) return TotpStoreCommitResult.UNKNOWN;
+            TotpStoreCommitReceipt result = this.delegate.compareAndCommit(write, budget);
+            if (result.getStatus() == TotpStoreCommitResult.COMMITTED && this.finalReadAfter.get() > 0
+                    && this.finalReadAfter.decrementAndGet() == 0) this.refusedReads.set(1);
+            if (result.getStatus() == TotpStoreCommitResult.COMMITTED && this.remaining.get() > 0
+                    && this.remaining.decrementAndGet() == 0) return TotpStoreCommitReceipt.unknownInstance();
             return result;
         }
     }

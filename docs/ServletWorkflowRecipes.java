@@ -110,7 +110,9 @@ public final class ServletWorkflowRecipes {
         ServletOAuthAuthorizationServer.writeResponse(response, server.jwksResponse(request.getMethod()));
     }
 
-    /** Enrollment starts only after the host has approved this account and its browser session. */
+    /** Enrollment starts only after the host has approved this account and its browser session.
+     * Prepared alone carries browser options; handle ReconciliationRequired explicitly with a generic
+     * private 503 and application reconciliation, without replay or proof reconstruction. */
     public static WebAuthnRegistrationRequestResult beginRegistration(WebAuthnRelyingParty relyingParty,
             WebAuthnRegistrationOptions approvedAccount, String browserBinding) {
         return relyingParty.beginRegistrationResult(approvedAccount, browserBinding);
@@ -144,7 +146,8 @@ public final class ServletWorkflowRecipes {
         return relyingParty.completeRegistrationResult(ceremonyId, body.getBodyWithPersonalData(), browserBinding);
     }
 
-    /** A sign-in Succeeded contains proof; the host verifies the approved account and rotates its session. */
+    /** A sign-in Succeeded contains proof; the host verifies the approved account and rotates its session.
+     * ReconciliationRequired and Indeterminate carry no proof; both withhold cookies and redirects. */
     public static WebAuthnAuthenticationResult completeAuthentication(WebAuthnRelyingParty relyingParty,
             String ceremonyId, ServletWebAuthnBodyResult.Read body, String browserBinding) {
         return relyingParty.completeAuthenticationResult(ceremonyId, body.getBodyWithPersonalData(), browserBinding);

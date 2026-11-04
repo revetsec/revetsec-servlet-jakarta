@@ -71,7 +71,7 @@ def main():
     for item in [args.core_jar, args.adapter_jar, *annotations]:
         if not item.is_file(): parser.error("required JAR is missing: " + str(item))
     auditor = repo / "verification/nullability/NullabilityAudit.java"
-    inputs = [fixture / "TotpServlet.java", fixture / "run.py", repo / "docs/ServletTotpRecipe.java", auditor,
+    inputs = [fixture / "TotpServlet.java", fixture / "ScriptedTotpStore.java", fixture / "run.py", repo / "docs/ServletTotpRecipe.java", auditor,
               repo / "verification/m12-container/runtime.json"]
     receipt = {"runtime": pins["version"], "archiveSha512": pins["archiveSha512"],
                "coreJarSha256": digest(args.core_jar), "adapterJarSha256": digest(args.adapter_jar),
@@ -105,7 +105,7 @@ def main():
                        "-Xlint:all", "-Werror", "-d", str(classes), "-cp",
                        os.pathsep.join(map(str, [args.core_jar, args.adapter_jar,
                                                  home / "lib/servlet-api.jar", *annotations])),
-                       str(repo / "docs/ServletTotpRecipe.java"), str(fixture / "TotpServlet.java")]
+                       str(repo / "docs/ServletTotpRecipe.java"), str(fixture / "TotpServlet.java"), str(fixture / "ScriptedTotpStore.java")]
             built = subprocess.run(command, capture_output=True, text=True)
             if built.returncode: raise RuntimeError("TOTP fixture compilation failed: " + built.stderr[:4000])
             checks.append("paired-cookbook-and-fixture-warning-fatal-java17-compile")
@@ -117,7 +117,8 @@ def main():
             if audit_build.returncode:
                 raise RuntimeError("Nullability checker compilation failed: " + audit_build.stderr[:4000])
             (root / "audit-sources.txt").write_text(str(repo / "docs/ServletTotpRecipe.java") + "\n"
-                                                      + str(fixture / "TotpServlet.java") + "\n")
+                                                      + str(fixture / "TotpServlet.java") + "\n"
+                                                      + str(fixture / "ScriptedTotpStore.java") + "\n")
             (root / "audit-classpath.txt").write_text(os.pathsep.join(map(str, [classes, args.core_jar,
                 args.adapter_jar, home / "lib/servlet-api.jar", *annotations])) + "\n")
             audit_run = subprocess.run([str(args.java_home / "bin/java"), "-cp",
@@ -293,13 +294,30 @@ def main():
                 assert code_post("/recovery", issued[1].encode("ascii"), primary())[0] == 403
                 checks.append("authorized-recovery-rotation-invalidates-old-batch")
 
+                # Let earlier deliberate failures leave the short admission window.
+                # The worker and independent store authority both advance explicitly.
+                for _ in range(11):
+                    assert request("POST", "/test/advance")[0] == 204
+                assert request("POST", "/test/reconciliation")[0] == 204
+                withheld_browser = primary()
+                withheld = code_post("/recovery", replacement_codes[1].encode("ascii"), withheld_browser)
+                assert withheld[0] == 503 and "set-cookie" not in withheld[1]
+                assert withheld[1]["cache-control"] == "no-store" and "retry-after" not in withheld[1]
+                assert json.loads(withheld[2]) == {"error": "Temporarily unavailable"}
+                assert request("POST", "/test/assert-reconciliation")[0] == 204
+                remaining = json.loads(request("GET", "/status", headers=strong)[2])["remainingRecoveryCodes"]
+                assert remaining == 9, "known requested commitment consumes exactly one code"
+                assert code_post("/recovery", replacement_codes[1].encode("ascii"), primary())[0] == 403
+                checks.append("known-recovery-commit-final-root-outage-reconciles-without-cookie-secret-or-retry")
+
                 assert request("POST", "/test/unknown")[0] == 204
                 uncertain_browser = primary()
                 uncertain = code_post("/recovery", replacement_codes[0].encode("ascii"), uncertain_browser)
                 assert uncertain[0] == 503 and "set-cookie" not in uncertain[1]
+                assert uncertain[2] == withheld[2] and "retry-after" not in uncertain[1]
                 assert code_post("/recovery", replacement_codes[0].encode("ascii"), primary())[0] == 403
                 remaining = json.loads(request("GET", "/status", headers=strong)[2])["remainingRecoveryCodes"]
-                assert remaining == 9, "unknown acknowledgement followed committed code consumption"
+                assert remaining == 8, "unknown acknowledgement followed one more committed code consumption"
                 checks.append("lost-final-commit-ack-withholds-cookie-and-consumed-code-replays-denied")
 
                 removed = request("POST", "/remove", headers=strong)

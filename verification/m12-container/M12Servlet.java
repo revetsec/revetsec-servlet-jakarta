@@ -23,6 +23,7 @@ import com.revetsec.oauth.server.OAuthIntrospectionResult;
 import com.revetsec.oauth.server.OAuthIssuerAccessTokenResult;
 import com.revetsec.oauth.server.OAuthRevocationResult;
 import com.revetsec.oauth.server.OAuthTokenResult;
+import com.revetsec.oauth.server.OAuthServerException;
 import com.revetsec.servlet.jakarta.ServletBearer;
 import com.revetsec.servlet.jakarta.ServletOAuth;
 import com.revetsec.servlet.jakarta.ServletOAuthAuthorizationServer;
@@ -53,6 +54,8 @@ import java.util.Enumeration;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.jspecify.annotations.NonNull;
 
 /** Private loopback application for actual Servlet transport qualification. */
 public final class M12Servlet extends HttpServlet {
@@ -64,6 +67,11 @@ public final class M12Servlet extends HttpServlet {
     private final M12Authenticator authenticator;
     private final WebAuthnSettings settings = WebAuthnSettings.builder().maximumResponseBodyBytes(4096).build();
     private final WebAuthnRelyingParty relyingParty;
+    private final @NonNull M12FaultStore faultStore;
+    private final @NonNull AtomicInteger reconciliationResults = new AtomicInteger();
+    private final @NonNull AtomicInteger unknownResults = new AtomicInteger();
+    private final @NonNull AtomicInteger issuerConfirmed = new AtomicInteger();
+    private final @NonNull AtomicInteger issuerUnknown = new AtomicInteger();
 
     public M12Servlet() {
         try {
@@ -76,9 +84,10 @@ public final class M12Servlet extends HttpServlet {
                 @Override public Boolean isCurrent() { return true; }
                 @Override public void close() { }
             };
+            this.faultStore = new M12FaultStore(InMemoryWebAuthnStore.fromLimits(128, 2_000_000));
             this.relyingParty = WebAuthnRelyingParty.withRelyingPartyId(M12Authenticator.RP)
                     .relyingPartyName("M12 Qualification").allowedOrigins(Set.of(M12Authenticator.ORIGIN))
-                    .credentialNamespace("m12").store(InMemoryWebAuthnStore.withLimits(128, 2_000_000))
+                    .credentialNamespace("m12").store(this.faultStore)
                     .stateSealer(sealer).recoveryGate(gate).settings(this.settings).build();
         } catch (Exception failure) {
             throw new IllegalStateException("Private qualification fixture failed to initialize", failure);
@@ -112,14 +121,49 @@ public final class M12Servlet extends HttpServlet {
             case "/as/authorize" -> authorize(request, response);
             case "/as/approve" -> approve(request, response);
             case "/as/token" -> token(request, response);
+            case "/as/test/fault" -> {
+                if (!post(request, response)) return;
+                String mode = queryValue(request, "mode");
+                if (mode == null) { send(response, 400, ""); return; }
+                this.issuer.store.arm(mode); send(response, 204, "");
+            }
+            case "/as/test/facts" -> {
+                if (!get(request, response)) return;
+                send(response, 200, "{\"effects\":" + this.issuer.store.effects()
+                        + ",\"finalReads\":" + this.issuer.store.finalReads()
+                        + ",\"confirmed\":" + this.issuerConfirmed.get()
+                        + ",\"unknown\":" + this.issuerUnknown.get()
+                        + ",\"backingVersionChanged\":" + this.issuer.store.backingVersionChanged() + "}");
+            }
             case "/as/revoke" -> revoke(request, response);
             case "/as/introspect" -> introspect(request, response);
+            // Private adapter-only probe: Read is untrusted transport material, never a proof.
+            case "/wa/test/body" -> {
+                ServletWebAuthnBodyResult result = ServletWebAuthn.bodyResultFor(this.settings, request);
+                if (result instanceof ServletWebAuthnBodyResult.Read read)
+                    send(response, 200, "Read:" + read.getBodyWithPersonalData().length);
+                else if (result instanceof ServletWebAuthnBodyResult.Rejected) send(response, 400, "Rejected");
+                else send(response, 503, "Unavailable");
+            }
             case "/wa/register/start" -> registrationStart(request, response);
             case "/wa/register/complete" -> registrationComplete(request, response);
             case "/wa/authenticate/start" -> authenticationStart(request, response, false);
             case "/wa/reauthenticate/start" -> authenticationStart(request, response, true);
             case "/wa/authenticate/complete" -> authenticationComplete(request, response, false);
             case "/wa/reauthenticate/complete" -> authenticationComplete(request, response, true);
+            case "/wa/test/fault" -> {
+                if (!post(request, response)) return;
+                String mode = queryValue(request, "mode");
+                if (mode == null) { send(response, 400, ""); return; }
+                this.faultStore.arm(mode); send(response, 204, "");
+            }
+            case "/wa/test/facts" -> {
+                if (!get(request, response)) return;
+                send(response, 200, "{\"effects\":" + this.faultStore.effects()
+                        + ",\"finalReads\":" + this.faultStore.finalReads()
+                        + ",\"reconciliation\":" + this.reconciliationResults.get()
+                        + ",\"unknown\":" + this.unknownResults.get() + "}");
+            }
             case "/wa/test/registration-response" -> testResponse(request, response, true);
             case "/wa/test/assertion-response" -> testResponse(request, response, false);
             default -> send(response, 404, "");
@@ -252,10 +296,16 @@ public final class M12Servlet extends HttpServlet {
     }
 
     private void token(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        OAuthTokenResult result = ServletOAuthAuthorizationServer.tokenResultFor(this.issuer.server, request);
-        ServletOAuthAuthorizationServer.writeResponse(response,
-                result instanceof OAuthTokenResult.Succeeded success ? success.getResponse()
-                        : ((OAuthTokenResult.Rejected) result).getResponse());
+        try {
+            OAuthTokenResult result = ServletOAuthAuthorizationServer.tokenResultFor(this.issuer.server, request);
+            ServletOAuthAuthorizationServer.writeResponse(response,
+                    result instanceof OAuthTokenResult.Succeeded success ? success.getResponse()
+                            : ((OAuthTokenResult.Rejected) result).getResponse());
+        } catch (OAuthServerException failure) {
+            if (failure.getReason() == OAuthServerException.Reason.COMMIT_CONFIRMED_NOT_ADMITTED) this.issuerConfirmed.incrementAndGet();
+            if (failure.getReason() == OAuthServerException.Reason.COMMIT_OUTCOME_UNKNOWN) this.issuerUnknown.incrementAndGet();
+            ServletOAuthAuthorizationServer.writeResponse(response, this.issuer.server.responseForFailure(failure));
+        }
     }
     private void revoke(HttpServletRequest request, HttpServletResponse response) throws IOException {
         OAuthRevocationResult result = ServletOAuthAuthorizationServer.revocationResultFor(this.issuer.server, request);
@@ -279,6 +329,7 @@ public final class M12Servlet extends HttpServlet {
         WebAuthnRegistrationRequestResult result = this.relyingParty.beginRegistrationResult(options, session.binding());
         if (result instanceof WebAuthnRegistrationRequestResult.Prepared prepared)
             ServletWebAuthn.writeBrowserRequest(response, prepared.getRequest());
+        else if (result instanceof WebAuthnRegistrationRequestResult.ReconciliationRequired) reconciliation(response);
         else send(response, 503, "");
     }
     private void authenticationStart(HttpServletRequest request, HttpServletResponse response,
@@ -291,6 +342,7 @@ public final class M12Servlet extends HttpServlet {
                 : this.relyingParty.beginAuthenticationResult(session.binding());
         if (result instanceof WebAuthnAuthenticationRequestResult.Prepared prepared)
             ServletWebAuthn.writeBrowserRequest(response, prepared.getRequest());
+        else if (result instanceof WebAuthnAuthenticationRequestResult.ReconciliationRequired) reconciliation(response);
         else send(response, 503, "");
     }
     private void registrationComplete(HttpServletRequest request, HttpServletResponse response) throws IOException {
@@ -304,6 +356,7 @@ public final class M12Servlet extends HttpServlet {
         WebAuthnRegistrationResult result = this.relyingParty.completeRegistrationResult(
                 ceremony, read.getBodyWithPersonalData(), session.binding());
         if (result instanceof WebAuthnRegistrationResult.Succeeded) send(response, 204, "");
+        else if (result instanceof WebAuthnRegistrationResult.ReconciliationRequired) reconciliation(response);
         else if (result instanceof WebAuthnRegistrationResult.Rejected) send(response, 400, "");
         else send(response, 503, "");
     }
@@ -328,8 +381,14 @@ public final class M12Servlet extends HttpServlet {
                 send(response, 500, ""); return;
             }
             send(response, 204, "");
-        } else if (result instanceof WebAuthnAuthenticationResult.Rejected) send(response, 400, "");
+        } else if (result instanceof WebAuthnAuthenticationResult.ReconciliationRequired) reconciliation(response);
+        else if (result instanceof WebAuthnAuthenticationResult.Indeterminate) { this.unknownResults.incrementAndGet(); send(response, 503, ""); }
+        else if (result instanceof WebAuthnAuthenticationResult.Rejected) send(response, 400, "");
         else send(response, 503, "");
+    }
+
+    private void reconciliation(@NonNull HttpServletResponse response) throws IOException {
+        this.reconciliationResults.incrementAndGet(); send(response, 503, "");
     }
 
     private static void bodyFailure(HttpServletResponse response, ServletWebAuthnBodyResult result) throws IOException {
@@ -345,7 +404,9 @@ public final class M12Servlet extends HttpServlet {
         try {
             byte[] payload = registration ? this.authenticator.registrationJson(challenge)
                     : this.authenticator.assertionJson(challenge,
-                            "2".equals(queryValue(request, "counter")) ? 2 : 1);
+                            switch (String.valueOf(queryValue(request, "counter"))) {
+                                case "2" -> 2; case "3" -> 3; case "4" -> 4; default -> 1;
+                            });
             sendBytes(response, 200, payload);
         } catch (Exception failure) { throw new IllegalStateException("Synthetic authenticator failed", failure); }
     }

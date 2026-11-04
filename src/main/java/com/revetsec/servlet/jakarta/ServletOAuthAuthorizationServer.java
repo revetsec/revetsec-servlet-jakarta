@@ -40,7 +40,9 @@ import static java.util.Objects.requireNonNull;
 /** Thin issuer transport for application-routed Servlet requests and core-prepared responses.
  * Applications own route and issuer selection, browser sessions, authentication, consent and CSRF.
  * Read the original body before Servlet parameter decoding. Container and trusted-edge allocation
- * and time limits must also apply before this adapter is called.
+ * and time limits must also apply before this adapter is called. Header-name overflow returns
+ * core's malformed-request result rather than an input exception. Enumeration keeps its existing
+ * bounded cutoff; under the bound, original names, casing and duplicate values reach core unchanged.
  * @since 1.0.0
  */
 @ThreadSafe
@@ -151,7 +153,8 @@ public final class ServletOAuthAuthorizationServer {
         while (names.hasMoreElements() && fields.size() < REJECTING_HEADER_COUNT
                 && occurrences < REJECTING_HEADER_COUNT) {
             if (++namesSeen >= REJECTING_HEADER_COUNT)
-                throw new IllegalArgumentException("Too many Servlet request header names");
+                // An empty field name guarantees core refusal, even for repeated names with no values.
+                return Map.of("", List.of());
             String name = requireNonNull(names.nextElement());
             List<String> values = fields.computeIfAbsent(name, ignored -> new ArrayList<>());
             Enumeration<String> originals = request.getHeaders(name);

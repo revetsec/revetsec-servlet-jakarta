@@ -77,8 +77,8 @@ final class ServletM12TransportTests {
                 stream(body))));
         assertInstanceOf(ServletOAuthCallbackResult.Rejected.class, ServletOAuth.authorizationResponseResultFor(request("GET",
                 "state=a&state=b", Map.of(), new CountingStream(0, null))));
-        assertThrows(IllegalArgumentException.class, () -> parsed(ServletOAuth.authorizationResponseResultFor(request("PUT", null,
-                Map.of(), new CountingStream(0, null)))));
+        assertInstanceOf(ServletOAuthCallbackResult.Rejected.class, ServletOAuth.authorizationResponseResultFor(request("PUT", null,
+                Map.of(), new CountingStream(0, null))));
     }
 
     @Test void oauthCallbackReadStopsAtOneOverflowByte() throws IOException {
@@ -134,17 +134,6 @@ final class ServletM12TransportTests {
         InvocationTargetException unavailable = assertThrows(InvocationTargetException.class,
                 () -> headersFor.invoke(null, unavailableHeaders));
         assertInstanceOf(IllegalStateException.class, unavailable.getCause());
-        HttpServletRequest repeatedNames = (HttpServletRequest) Proxy.newProxyInstance(
-                HttpServletRequest.class.getClassLoader(), new Class<?>[]{HttpServletRequest.class},
-                (proxy, called, arguments) -> switch (called.getName()) {
-                    case "getHeaderNames" -> Collections.enumeration(Collections.nCopies(65, "X"));
-                    case "getHeaders" -> Collections.emptyEnumeration();
-                    default -> throw new UnsupportedOperationException(called.getName());
-                });
-        InvocationTargetException excess = assertThrows(InvocationTargetException.class,
-                () -> headersFor.invoke(null, repeatedNames));
-        assertInstanceOf(IllegalArgumentException.class, excess.getCause());
-
         Method prepare = OAuthServerResponse.class.getDeclaredMethod("prepare", int.class, Map.class,
                 URI.class, byte[].class, int.class, int.class);
         prepare.setAccessible(true);
@@ -225,7 +214,7 @@ final class ServletM12TransportTests {
         };
         WebAuthnRelyingParty party = WebAuthnRelyingParty.withRelyingPartyId("login.example.com")
                 .relyingPartyName("Example").allowedOrigins(Set.of("https://login.example.com"))
-                .credentialNamespace("tenant").store(InMemoryWebAuthnStore.withLimits(128, 2_000_000))
+                .credentialNamespace("tenant").store(InMemoryWebAuthnStore.fromLimits(128, 2_000_000))
                 .stateSealer(sealer).recoveryGate(gate).build();
         WebAuthnBrowserRequest prepared = assertInstanceOf(WebAuthnAuthenticationRequestResult.Prepared.class,
                 party.beginAuthenticationResult(Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[32])))

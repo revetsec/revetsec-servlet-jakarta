@@ -57,7 +57,9 @@ public final class ServletSaml {
     private ServletSaml() { }
 
     /**
-     * Reads the original bounded POST body, all Content-Type header values, and the raw query.
+     * Reads the original bounded POST body, at most two Content-Type values, and the raw query.
+     * A second occurrence preserves core's duplicate rejection without reading the enumeration tail
+     * or accessing the body. Trusted edge/container framing, allocation and time limits still apply.
      *
      * @param request application-routed ACS request
      * @return core's untrusted POST-binding parse result
@@ -74,7 +76,8 @@ public final class ServletSaml {
     }
 
     /**
-     * Reads the original bounded logout POST body, every Content-Type value and the raw query.
+     * Reads the original bounded logout POST body, at most two Content-Type values and the raw query.
+     * A second occurrence preserves core's duplicate rejection without further header probes or body access.
      * The application supplies browser-bound pending state to core when completing SP logout;
      * a pending cookie for a cross-site POST requires Secure, HttpOnly and SameSite=None.
      *
@@ -94,9 +97,11 @@ public final class ServletSaml {
 
     private static @NonNull SamlPostBindingParseResult postBindingResult(
             @NonNull HttpServletRequest request, boolean logout) throws IOException {
-        List<String> contentTypes = new ArrayList<>();
+        List<String> contentTypes = new ArrayList<>(2);
         Enumeration<String> values = request.getHeaders("Content-Type");
-        if (values != null) while (values.hasMoreElements()) contentTypes.add(values.nextElement());
+        // A second occurrence is sufficient for core refusal; never probe or read its tail.
+        if (values != null) while (contentTypes.size() < 2 && values.hasMoreElements())
+            contentTypes.add(values.nextElement());
         String rawQuery = request.getQueryString();
         // Let core reject invalid framing before allocating or reading an untrusted body.
         byte[] framingProbe = { 'x' };

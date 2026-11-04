@@ -58,6 +58,7 @@ import java.util.Optional;
  * This is a compilable cookbook source, not a published Revetsec adapter API.
  */
 @ThreadSafe
+@SuppressWarnings("serial") // Reconstruct the injected services and servlet after restart; do not serialize them.
 public final class ServletTotpRecipe extends HttpServlet {
     private static final long serialVersionUID = 1L;
     private static final @NonNull Duration REQUEST_BUDGET = Duration.ofSeconds(10);
@@ -144,6 +145,10 @@ public final class ServletTotpRecipe extends HttpServlet {
         }
         if (result instanceof TotpEnrollmentRequestResult.Throttled throttled)
             return throttled(throttled.getRetryAfter());
+        if (result instanceof TotpEnrollmentRequestResult.ReconciliationRequired) {
+            this.security.requireReconciliation(context);
+            return unavailable();
+        }
         if (result instanceof TotpEnrollmentRequestResult.Indeterminate) {
             this.security.requireReconciliation(context);
             return unavailable();
@@ -168,6 +173,10 @@ public final class ServletTotpRecipe extends HttpServlet {
         }
         if (result instanceof TotpEnrollmentResult.Throttled throttled)
             return throttled(throttled.getRetryAfter());
+        if (result instanceof TotpEnrollmentResult.ReconciliationRequired) {
+            this.security.requireReconciliation(input);
+            return unavailable();
+        }
         if (result instanceof TotpEnrollmentResult.Indeterminate) {
             this.security.requireReconciliation(input);
             return unavailable();
@@ -190,8 +199,15 @@ public final class ServletTotpRecipe extends HttpServlet {
         }
         if (result instanceof TotpVerificationResult.Throttled throttled)
             return throttled(throttled.getRetryAfter());
-        return result instanceof TotpVerificationResult.Unavailable
-                || result instanceof TotpVerificationResult.Indeterminate ? unavailable() : denied();
+        if (result instanceof TotpVerificationResult.ReconciliationRequired) {
+            this.security.requireReconciliation(input);
+            return unavailable();
+        }
+        if (result instanceof TotpVerificationResult.Indeterminate) {
+            this.security.requireReconciliation(input);
+            return unavailable();
+        }
+        return result instanceof TotpVerificationResult.Unavailable ? unavailable() : denied();
     }
 
     private @NonNull Prepared useRecoveryCode(@NonNull HttpServletRequest request) throws IOException {
@@ -209,8 +225,15 @@ public final class ServletTotpRecipe extends HttpServlet {
         }
         if (result instanceof RecoveryCodeUseResult.Throttled throttled)
             return throttled(throttled.getRetryAfter());
-        return result instanceof RecoveryCodeUseResult.Unavailable
-                || result instanceof RecoveryCodeUseResult.Indeterminate ? unavailable() : denied();
+        if (result instanceof RecoveryCodeUseResult.ReconciliationRequired) {
+            this.security.requireReconciliation(input);
+            return unavailable();
+        }
+        if (result instanceof RecoveryCodeUseResult.Indeterminate) {
+            this.security.requireReconciliation(input);
+            return unavailable();
+        }
+        return result instanceof RecoveryCodeUseResult.Unavailable ? unavailable() : denied();
     }
 
     private @NonNull Prepared rotateRecoveryCodes(@NonNull HttpServletRequest request) throws IOException {
@@ -225,6 +248,10 @@ public final class ServletTotpRecipe extends HttpServlet {
                 return unavailable();
             }
             return json(200, recoveryCodes(codes));
+        }
+        if (result instanceof RecoveryCodeRotationResult.ReconciliationRequired) {
+            this.security.requireReconciliation(context);
+            return unavailable();
         }
         if (result instanceof RecoveryCodeRotationResult.Indeterminate) {
             this.security.requireReconciliation(context);
@@ -245,6 +272,10 @@ public final class ServletTotpRecipe extends HttpServlet {
             }
             return json(200, JsonObject.builder().put("removed", true).build());
         }
+        if (result instanceof TotpFactorRemovalResult.ReconciliationRequired) {
+            this.security.requireReconciliation(context);
+            return unavailable();
+        }
         if (result instanceof TotpFactorRemovalResult.Indeterminate) {
             this.security.requireReconciliation(context);
             return unavailable();
@@ -263,6 +294,10 @@ public final class ServletTotpRecipe extends HttpServlet {
                 return unavailable();
             }
             return json(200, JsonObject.builder().put("cancelled", true).build());
+        }
+        if (result instanceof TotpEnrollmentCancellationResult.ReconciliationRequired) {
+            this.security.requireReconciliation(context);
+            return unavailable();
         }
         if (result instanceof TotpEnrollmentCancellationResult.Indeterminate) {
             this.security.requireReconciliation(context);

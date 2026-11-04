@@ -50,6 +50,7 @@ final class M12Issuer {
     static final String VERIFIER = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
     static final String CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
     final OAuthAuthorizationServer server;
+    final M12IssuerFaultStore store=new M12IssuerFaultStore(new M12IssuerStore(2048,4_194_304));
 
     M12Issuer() throws Exception {
         KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
@@ -80,41 +81,15 @@ final class M12Issuer {
                 .introspectionEndpoint(URI.create(ISSUER + "/introspect"))
                 .clientRepository((id, budget) -> id.equals(CLIENT) ? Optional.of(client)
                         : id.equals("resource") ? Optional.of(resourceClient) : Optional.empty())
-                .store(new VolatileStore()).signingKeys(OAuthIssuerKeyProvider.fromSnapshot(keys))
+                .store(this.store).signingKeys(OAuthIssuerKeyProvider.fromSnapshot(keys))
                 .stateSealer(sealer).resources(Map.of(RESOURCE, Set.of("read")))
                 .grantPolicy((context, budget) -> OAuthAuthorizationDecision.withSubject("subject")
                         .authorizedScopesByResource(Map.of(RESOURCE, Set.of("read")))
                         .refreshTokenPermitted(true).build())
                 .refreshTokensEnabled(true).build();
-        if (this.server.initializeFreshIssuer() != OAuthStoreCommitStatus.COMMITTED)
+        if (this.server.initializeFreshIssuer().getStatus() != OAuthStoreCommitStatus.COMMITTED)
             throw new IllegalStateException("Issuer fixture initialization failed");
         this.server.establishNewSubject("subject");
     }
 
-    private static final class VolatileStore implements OAuthAuthorizationServerStore {
-        private final Map<OAuthStoreKey, OAuthStoreEntry> records = new HashMap<>();
-
-        @Override public synchronized Optional<OAuthStoreEntry> read(OAuthStoreKey key, Duration remainingBudget) {
-            if (remainingBudget.isZero() || remainingBudget.isNegative())
-                throw new IllegalStateException("Issuer fixture budget exhausted");
-            return Optional.ofNullable(this.records.get(key));
-        }
-
-        @Override public synchronized OAuthStoreCommitStatus commit(OAuthStoreTransaction transaction,
-                Duration remainingBudget) {
-            if (remainingBudget.isZero() || remainingBudget.isNegative())
-                throw new IllegalStateException("Issuer fixture budget exhausted");
-            for (OAuthStoreTransaction.Condition condition : transaction.getConditions()) {
-                OAuthStoreEntry current = this.records.get(condition.getKey());
-                Optional<String> actual = current == null ? Optional.empty() : Optional.of(current.getVersion());
-                if (!condition.getExpectedVersion().equals(actual)) return OAuthStoreCommitStatus.CONFLICT;
-            }
-            for (OAuthStoreTransaction.Mutation mutation : transaction.getMutations()) {
-                if (mutation.getKind() == OAuthStoreTransaction.Mutation.Kind.REMOVE)
-                    this.records.remove(mutation.getKey());
-                else this.records.put(mutation.getKey(), mutation.getEntry().orElseThrow());
-            }
-            return OAuthStoreCommitStatus.COMMITTED;
-        }
-    }
 }

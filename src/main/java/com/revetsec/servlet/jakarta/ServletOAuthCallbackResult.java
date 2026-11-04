@@ -89,7 +89,7 @@ public abstract sealed class ServletOAuthCallbackResult
 	}
 
 	/**
-	 * A malformed, duplicate, oversized or split-channel callback.
+	 * A callback rejected for an unsupported method or malformed, duplicate, oversized or split-channel input.
 	 * @author <a href="https://www.revetkn.com">Mark Allen</a>
 	 * @since 1.0.0
 	 */
