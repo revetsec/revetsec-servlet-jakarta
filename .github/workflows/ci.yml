@@ -312,16 +312,24 @@ jobs:
           mvn -B -ntp -f adapter/pom.xml -Dmaven.javadoc.skip=true package
       - name: Compile paired M12 cookbook sources
         run: |
-          mvn -B -ntp -f core/examples/postgresql-pending-store/pom.xml -Dmaven.test.skip=true package
+          # Maven still resolves this example's unpublished test-only siblings with maven.test.skip.
+          # Compile its main sources with the same pinned dependency instead.
+          mvn -B -ntp -f adapter/pom.xml org.apache.maven.plugins:maven-dependency-plugin:3.11.0:get \
+            -Dartifact=com.pyranid:pyranid:4.7.0 -Dtransitive=false
           servlet_api_jar="$HOME/.m2/repository/jakarta/servlet/jakarta.servlet-api/6.1.0/jakarta.servlet-api-6.1.0.jar"
-          example_jar="core/examples/postgresql-pending-store/target/postgresql-pending-store-1.0.0-SNAPSHOT.jar"
+          pyranid_jar="$HOME/.m2/repository/com/pyranid/pyranid/4.7.0/pyranid-4.7.0.jar"
+          jspecify_jar="$HOME/.m2/repository/org/jspecify/jspecify/1.0.1/jspecify-1.0.1.jar"
+          jsr305_jar="$HOME/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar"
           test -f "$servlet_api_jar"
-          test -f "$example_jar"
+          test -f "$pyranid_jar"
+          test -f "$jspecify_jar"
+          test -f "$jsr305_jar"
           mkdir -p "$RUNNER_TEMP/m12-recipes"
-          "$JAVA_HOME/bin/javac" --release 17 -proc:none -Xlint:all -Werror \
-            -cp "core/target/revetsec-1.0.0-SNAPSHOT.jar:adapter/target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar:$servlet_api_jar:$example_jar" \
-            -d "$RUNNER_TEMP/m12-recipes" \
-            adapter/docs/ServletWorkflowRecipes.java adapter/docs/ServletDurableBackendRecipe.java
+          find core/examples/postgresql-pending-store/src/main/java -type f -name '*.java' -print0 |
+            xargs -0 "$JAVA_HOME/bin/javac" --release 17 -proc:none -Xlint:all -Werror \
+              -cp "core/target/revetsec-1.0.0-SNAPSHOT.jar:adapter/target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar:$servlet_api_jar:$pyranid_jar:$jspecify_jar:$jsr305_jar" \
+              -d "$RUNNER_TEMP/m12-recipes" \
+              adapter/docs/ServletWorkflowRecipes.java adapter/docs/ServletDurableBackendRecipe.java
       - name: Download the reviewed Servlet runtime
         run: |
           url=$(python3 -c 'import json; print(json.load(open("adapter/verification/m12-container/runtime.json"))["url"])')
