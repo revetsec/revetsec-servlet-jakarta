@@ -15,6 +15,7 @@
  */
 package example;
 
+import com.revetsec.OperationBinding;
 import com.revetsec.json.JsonArray;
 import com.revetsec.json.JsonObject;
 import com.revetsec.json.JsonString;
@@ -127,7 +128,7 @@ public final class ServletTotpRecipe extends HttpServlet {
             options = options.replacingFactorId(replacing);
         } else if (replacing != null) return denied();
         TotpEnrollmentRequestResult result = this.totp.beginEnrollmentResult(
-                options.build(), context.getBrowserBinding());
+                options.build(), context.getOperationBinding());
         if (result instanceof TotpEnrollmentRequestResult.Prepared prepared) {
             TotpEnrollment enrollment = prepared.getEnrollment();
             // Save identifiers, not the setup secret. An uncertain save withholds that secret.
@@ -160,7 +161,7 @@ public final class ServletTotpRecipe extends HttpServlet {
         EnrollmentSubmission input = this.security.admitEnrollmentConfirmation(request);
         if (input == null) return denied();
         TotpEnrollmentResult result = this.totp.confirmEnrollmentResult(input.getAccountId(),
-                input.getEnrollmentId(), input.getCode(), input.getBrowserBinding());
+                input.getEnrollmentId(), input.getCode(), input.getOperationBinding());
         if (result instanceof TotpEnrollmentResult.Succeeded success) {
             if (!this.recoveryEpoch.equals(success.getFactor().getRecoveryEpoch())
                     || !this.security.completeEnrollment(input, success.getFactor(),
@@ -287,7 +288,7 @@ public final class ServletTotpRecipe extends HttpServlet {
         CancellationContext context = this.security.admitCancellation(request);
         if (context == null) return denied();
         TotpEnrollmentCancellationResult result = this.totp.cancelEnrollmentResult(context.getAccountId(),
-                context.getEnrollmentId(), context.getBrowserBinding());
+                context.getEnrollmentId(), context.getOperationBinding());
         if (result instanceof TotpEnrollmentCancellationResult.Succeeded) {
             if (!this.security.completeCancellation(context)) {
                 this.security.requireReconciliation(context);
@@ -480,17 +481,17 @@ public final class ServletTotpRecipe extends HttpServlet {
     @ThreadSafe public interface ActionContext { @NonNull String getAccountId(); }
     @ThreadSafe public interface EnrollmentContext extends ActionContext {
         @NonNull String getAccountLabel();
-        @NonNull String getBrowserBinding();
+        @NonNull OperationBinding getOperationBinding();
         @NonNull Optional<@NonNull String> getReplacingFactorId();
     }
     @ThreadSafe public interface EnrollmentSubmission extends ActionContext {
         @NonNull String getEnrollmentId();
         @NonNull String getCode();
-        @NonNull String getBrowserBinding();
+        @NonNull OperationBinding getOperationBinding();
     }
     @ThreadSafe public interface LoginSubmission extends ActionContext {
         @NonNull String getCode();
-        @NonNull String getOperationBinding();
+        @NonNull OperationBinding getOperationBinding();
     }
     @ThreadSafe public interface RotationContext extends ActionContext {
         @NonNull String getExpectedFactorId();
@@ -501,6 +502,6 @@ public final class ServletTotpRecipe extends HttpServlet {
     }
     @ThreadSafe public interface CancellationContext extends ActionContext {
         @NonNull String getEnrollmentId();
-        @NonNull String getBrowserBinding();
+        @NonNull OperationBinding getOperationBinding();
     }
 }

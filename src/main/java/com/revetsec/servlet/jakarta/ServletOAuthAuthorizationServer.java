@@ -16,6 +16,7 @@
 package com.revetsec.servlet.jakarta;
 
 import com.google.errorprone.annotations.CheckReturnValue;
+import com.revetsec.BrowserBinding;
 import com.revetsec.oauth.server.OAuthAuthorizationResult;
 import com.revetsec.oauth.server.OAuthAuthorizationServer;
 import com.revetsec.oauth.server.OAuthIntrospectionResult;
@@ -64,7 +65,7 @@ public final class ServletOAuthAuthorizationServer {
     @CheckReturnValue
     public static @NonNull OAuthAuthorizationResult beginAuthorizationResultFor(
             @NonNull OAuthAuthorizationServer server, @NonNull HttpServletRequest request,
-            @NonNull String browserBinding) throws IOException {
+            @NonNull BrowserBinding browserBinding) throws IOException {
         requireNonNull(server); requireNonNull(request); requireNonNull(browserBinding);
         return server.beginAuthorizationResult(request.getMethod(), request.getQueryString(), bodyFor(request),
                 headersFor(request), browserBinding);

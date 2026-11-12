@@ -217,7 +217,8 @@ final class ServletM12TransportTests {
                 .credentialNamespace("tenant").store(InMemoryWebAuthnStore.fromLimits(128, 2_000_000))
                 .stateSealer(sealer).recoveryGate(gate).build();
         WebAuthnBrowserRequest prepared = assertInstanceOf(WebAuthnAuthenticationRequestResult.Prepared.class,
-                party.beginAuthenticationResult(Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[32])))
+                party.beginAuthenticationResult(com.revetsec.OperationBinding.fromTrustedPersistence(
+                        Base64.getUrlEncoder().withoutPadding().encodeToString(new byte[32]))))
                 .getRequest();
         CapturedResponse outbound = new CapturedResponse();
         ServletWebAuthn.writeBrowserRequest(outbound.response(), prepared);

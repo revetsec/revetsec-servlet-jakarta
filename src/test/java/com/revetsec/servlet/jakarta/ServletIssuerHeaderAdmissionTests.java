@@ -69,7 +69,7 @@ final class ServletIssuerHeaderAdmissionTests {
                 .grantPolicy((context, budget) -> { throw new AssertionError("Rejected input reached grant policy"); })
                 .stateSealer(StateSealer.withActiveKey(SealingKey.fromBase64("test", "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=")).build())
                 .signingKeys(OAuthIssuerKeyProvider.fromSnapshot(OAuthIssuerKeySnapshot.withActiveKey(
-                        OAuthIssuerSigningKey.fromKeyPair("test", pair.getPrivate(), pair.getPublic()))
+                        OAuthIssuerSigningKey.fromRsaKeyPair("test", pair.getPrivate(), pair.getPublic()))
                         .generation("test").publishedAt(clock.instant().minusSeconds(120)).build()))
                 .maximumRequestBodyBytes(65_536).resources(Map.of("https://resource.example.test", Set.of("read"))).build();
     }
@@ -140,7 +140,7 @@ final class ServletIssuerHeaderAdmissionTests {
     private static @NonNull String defaultBody(@NonNull Endpoint endpoint) { return endpoint == Endpoint.AUTHORIZATION ? "" : FORM; }
     private static @NonNull Rejection rejected(@NonNull OAuthAuthorizationServer server, @NonNull Endpoint endpoint, @NonNull HttpServletRequest request) {
         return switch (endpoint) {
-            case AUTHORIZATION -> { var r = assertInstanceOf(OAuthAuthorizationResult.Rejected.class, assertDoesNotThrow(() -> ServletOAuthAuthorizationServer.beginAuthorizationResultFor(server, request, "A".repeat(43)))); yield new Rejection(r.getReason(), r.getResponse()); }
+            case AUTHORIZATION -> { var r = assertInstanceOf(OAuthAuthorizationResult.Rejected.class, assertDoesNotThrow(() -> ServletOAuthAuthorizationServer.beginAuthorizationResultFor(server, request, com.revetsec.BrowserBinding.fromTrustedPersistence("A".repeat(43))))); yield new Rejection(r.getReason(), r.getResponse()); }
             case TOKEN -> { var r = assertInstanceOf(OAuthTokenResult.Rejected.class, assertDoesNotThrow(() -> ServletOAuthAuthorizationServer.tokenResultFor(server, request))); yield new Rejection(r.getReason(), r.getResponse()); }
             case REVOCATION -> { var r = assertInstanceOf(OAuthRevocationResult.Rejected.class, assertDoesNotThrow(() -> ServletOAuthAuthorizationServer.revocationResultFor(server, request))); yield new Rejection(r.getReason(), r.getResponse()); }
             case INTROSPECTION -> { var r = assertInstanceOf(OAuthIntrospectionResult.Rejected.class, assertDoesNotThrow(() -> ServletOAuthAuthorizationServer.introspectionResultFor(server, request))); yield new Rejection(r.getReason(), r.getResponse()); }

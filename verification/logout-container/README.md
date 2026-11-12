@@ -1,0 +1,13 @@
+# Disposable Servlet RP logout checks
+
+`run.py` requires explicit core/common/JUnit-free-fixture JAR paths and SHA256 values, a reviewed `--tomcat-archive`, `--java-home`, compile-only `--annotations-repository` and fresh `--output`. It verifies inputs before output/resource creation, compiles `ServletOidcLogoutRecipe.java`, `OidcLogoutServlet.java` and `CarrierContractChecks.java` with release 17/warnings-fatal, attributes explicit nullability, runs the startup/output-I/O contract without annotations/JUnit at runtime, then owns one loopback Tomcat instance. Class origins and digests are checked before fixture work. Processes, fixture listeners and private instances stop on success/failure.
+
+With the qualified supplemental fixture, pass `--fixture-supplement` to include checked-close interruption, eight-versus-ninth shared admission and atomic duplicate-return race cells. The runner releases bounded fixture latches within two seconds; no automatic application retry is added.
+
+Use `--delivery form` (default) and `--delivery get` for the explicitly trusted GET profile. `--padding 6000` exercises a large form hint or GET URI-cap refusal. `--metadata-fault outage|unsupported` selects the terminal metadata control. Never treat this HTTP connector's trusted secure flag as a real TLS/browser result. Only the fixture secret in an unlogged environment authorizes private login/account/provider/clock/fault controls; those routes and fixture JAR are not deployment components.
+
+`test_artifact_selection.py` tests core/common/fixture digest and reviewed archive refusal before any output/listener. `calibrate.py` starts with a green real-container control then requires exact named failures from four private new-carrier defects. The actual failing-before output failure contract is retained in the private evidence packet. None of these claims detection of an existing core/adapter defect.
+
+The runner records redacted hashes/counts and exact source/runtime/artifact inputs. It does not log credentials, hint forms, cookie/state values, account data, full exception messages or provider request bodies. In particular, URI GET delivery contains a retained credential and must never appear in access logs. The bounded native HTTP driver may inspect those synthetic values in memory to exercise correlation; it is not a browser or hosted provider.
+
+Read `docs/oidc-logout.md` for application/backend responsibilities, actual transport representation limits, cancellation observation and open browser/TLS/edge/durable/final-candidate gates. No staging or commits are performed by verification.

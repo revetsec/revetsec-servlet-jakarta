@@ -15,6 +15,8 @@
  */
 package example;
 
+import com.revetsec.BrowserBinding;
+import com.revetsec.OperationBinding;
 import com.revetsec.oauth.AuthorizationCompletionResult;
 import com.revetsec.oauth.AuthorizationRedirect;
 import com.revetsec.oauth.AuthorizationResponse;
@@ -35,6 +37,7 @@ import com.revetsec.servlet.jakarta.ServletWebAuthn;
 import com.revetsec.servlet.jakarta.ServletWebAuthnBodyResult;
 import com.revetsec.webauthn.WebAuthnAuthenticationRequestResult;
 import com.revetsec.webauthn.WebAuthnAuthenticationResult;
+import com.revetsec.webauthn.WebAuthnReauthenticationResult;
 import com.revetsec.webauthn.WebAuthnBrowserRequest;
 import com.revetsec.webauthn.WebAuthnCredentialListResult;
 import com.revetsec.webauthn.WebAuthnCredentialRemovalResult;
@@ -75,7 +78,7 @@ public final class ServletWorkflowRecipes {
 
     /** Call only on this server's configured authorization route with an app-held browser binding. */
     public static OAuthAuthorizationResult beginIssuer(OAuthAuthorizationServer server,
-            HttpServletRequest request, String browserBinding) throws IOException {
+            HttpServletRequest request, BrowserBinding browserBinding) throws IOException {
         return ServletOAuthAuthorizationServer.beginAuthorizationResultFor(server, request, browserBinding);
     }
 
@@ -110,22 +113,22 @@ public final class ServletWorkflowRecipes {
         ServletOAuthAuthorizationServer.writeResponse(response, server.jwksResponse(request.getMethod()));
     }
 
-    /** Enrollment starts only after the host has approved this account and its browser session.
+    /** Enrollment starts only after the host has approved this account and its server-owned operation binding.
      * Prepared alone carries browser options; handle ReconciliationRequired explicitly with a generic
      * private 503 and application reconciliation, without replay or proof reconstruction. */
     public static WebAuthnRegistrationRequestResult beginRegistration(WebAuthnRelyingParty relyingParty,
-            WebAuthnRegistrationOptions approvedAccount, String browserBinding) {
-        return relyingParty.beginRegistrationResult(approvedAccount, browserBinding);
+            WebAuthnRegistrationOptions approvedAccount, OperationBinding operationBinding) {
+        return relyingParty.beginRegistrationResult(approvedAccount, operationBinding);
     }
 
     public static WebAuthnAuthenticationRequestResult beginSignIn(WebAuthnRelyingParty relyingParty,
-            String browserBinding) {
-        return relyingParty.beginAuthenticationResult(browserBinding);
+            OperationBinding operationBinding) {
+        return relyingParty.beginAuthenticationResult(operationBinding);
     }
 
     public static WebAuthnAuthenticationRequestResult beginReauthentication(WebAuthnRelyingParty relyingParty,
-            byte[] approvedUserHandle, String actionPurpose, String browserBinding) {
-        return relyingParty.beginReauthenticationResult(approvedUserHandle, actionPurpose, browserBinding);
+            byte[] approvedUserHandle, String actionPurpose, OperationBinding operationBinding) {
+        return relyingParty.beginReauthenticationResult(approvedUserHandle, actionPurpose, operationBinding);
     }
 
     /** Only a Prepared request supplies browser JSON and its opaque ceremony handle. */
@@ -140,25 +143,26 @@ public final class ServletWorkflowRecipes {
         return ServletWebAuthn.bodyResultFor(settings, request);
     }
 
-    /** Call only after the host accepts exact Host, Origin, CSRF, session and ceremony routing. */
+    /** Call only after the host accepts exact Host, Origin, CSRF, session and ceremony routing,
+     * then supplies the server-owned operation binding for that session. */
     public static WebAuthnRegistrationResult completeRegistration(WebAuthnRelyingParty relyingParty,
-            String ceremonyId, ServletWebAuthnBodyResult.Read body, String browserBinding) {
-        return relyingParty.completeRegistrationResult(ceremonyId, body.getBodyWithPersonalData(), browserBinding);
+            String ceremonyId, ServletWebAuthnBodyResult.Read body, OperationBinding operationBinding) {
+        return relyingParty.completeRegistrationResult(ceremonyId, body.getBodyWithPersonalData(), operationBinding);
     }
 
     /** A sign-in Succeeded contains proof; the host verifies the approved account and rotates its session.
      * ReconciliationRequired and Indeterminate carry no proof; both withhold cookies and redirects. */
     public static WebAuthnAuthenticationResult completeAuthentication(WebAuthnRelyingParty relyingParty,
-            String ceremonyId, ServletWebAuthnBodyResult.Read body, String browserBinding) {
-        return relyingParty.completeAuthenticationResult(ceremonyId, body.getBodyWithPersonalData(), browserBinding);
+            String ceremonyId, ServletWebAuthnBodyResult.Read body, OperationBinding operationBinding) {
+        return relyingParty.completeAuthenticationResult(ceremonyId, body.getBodyWithPersonalData(), operationBinding);
     }
 
     /** Succeeded requires a reauthentication ceremony bound to this account and action purpose. */
-    public static WebAuthnAuthenticationResult completeReauthentication(WebAuthnRelyingParty relyingParty,
+    public static WebAuthnReauthenticationResult completeReauthentication(WebAuthnRelyingParty relyingParty,
             byte[] approvedUserHandle, String actionPurpose, String ceremonyId,
-            ServletWebAuthnBodyResult.Read body, String browserBinding) {
+            ServletWebAuthnBodyResult.Read body, OperationBinding operationBinding) {
         return relyingParty.completeReauthenticationResult(approvedUserHandle, actionPurpose,
-                ceremonyId, body.getBodyWithPersonalData(), browserBinding);
+                ceremonyId, body.getBodyWithPersonalData(), operationBinding);
     }
 
     public static WebAuthnCredentialListResult listCredentials(WebAuthnRelyingParty relyingParty,

@@ -1,0 +1,7 @@
+# Fresh-process metadata qualification supplement
+
+The original `run.py` terminal metadata cells establish local close/no-save/no-delivery on a 503. Their final discovery counter does not establish that the named endpoint outage or absent endpoint caused it: earlier flows can consume the two-flight/30-second discovery allowance. Preserve those original receipts and names as historical observations; grant them no actual endpoint-fault cause credit. A held-back discovery result is consistent with those counters.
+
+`run_metadata.py` is a separate fresh-process supplement with the same explicit artifact/runtime inputs. It starts with zero discovery requests, obtains one genuine OP/PKCE/signature-authenticated fixture session (one discovery flight), advances the fixture clock 61 seconds and arms outage or unsupported metadata, then starts local logout. Success requires a second actual discovery flight, exact local session closure, no pending save/consume/provider logout/token retry, redacted 503 and only cookie deletion. It creates no browser/provider-session termination proof and retains the original component/transport/durable/final-candidate limits.
+
+Run both `--metadata-fault outage` and `--metadata-fault unsupported` in separate fresh output/process instances. The supplement does not modify the original carrier, runner, artifact selections or historical packet. No commits or staging occur.

@@ -57,7 +57,7 @@ final class M12Issuer {
         generator.initialize(2048);
         KeyPair pair = generator.generateKeyPair();
         OAuthIssuerKeySnapshot keys = OAuthIssuerKeySnapshot
-                .withActiveKey(OAuthIssuerSigningKey.fromKeyPair("m12", pair.getPrivate(), pair.getPublic()))
+                .withActiveKey(OAuthIssuerSigningKey.fromRsaKeyPair("m12", pair.getPrivate(), pair.getPublic()))
                 .generation("g1").publishedAt(Instant.now().minusSeconds(120)).build();
         OAuthServerClientRegistration client = OAuthServerClientRegistration.withClientId(CLIENT)
                 .configurationVersion("v1").redirectUris(List.of(URI.create(REDIRECT)))

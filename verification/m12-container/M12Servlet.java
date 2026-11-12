@@ -12,6 +12,8 @@
  */
 package example;
 
+import com.revetsec.BrowserBinding;
+import com.revetsec.OperationBinding;
 import com.revetsec.SealingKey;
 import com.revetsec.StateSealer;
 import com.revetsec.oauth.AuthorizationResponse;
@@ -33,6 +35,7 @@ import com.revetsec.webauthn.InMemoryWebAuthnStore;
 import com.revetsec.webauthn.WebAuthnAuthentication;
 import com.revetsec.webauthn.WebAuthnAuthenticationRequestResult;
 import com.revetsec.webauthn.WebAuthnAuthenticationResult;
+import com.revetsec.webauthn.WebAuthnReauthenticationResult;
 import com.revetsec.webauthn.WebAuthnBrowserRequest;
 import com.revetsec.webauthn.WebAuthnRecoveryGate;
 import com.revetsec.webauthn.WebAuthnRegistrationOptions;
@@ -178,14 +181,13 @@ public final class M12Servlet extends HttpServlet {
         return !values.hasMoreElements() && expected.equals(supplied);
     }
 
-    private record Session(String binding, String csrf) { }
+    private record Session(BrowserBinding browserBinding, OperationBinding operationBinding, String csrf) { }
 
     private void startSession(HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (!get(request, response)) return;
         String identity = randomText();
-        String binding = randomText();
         String csrf = randomText();
-        this.sessions.put(identity, new Session(binding, csrf));
+        this.sessions.put(identity, new Session(BrowserBinding.fresh(), OperationBinding.fresh(), csrf));
         response.setHeader("Set-Cookie", "m12_session=" + identity
                 + "; Path=/m12; Secure; HttpOnly; SameSite=Strict");
         response.setHeader("X-Fixture-Csrf", csrf);
@@ -263,7 +265,7 @@ public final class M12Servlet extends HttpServlet {
         Session session = browserSession(request, response);
         if (session == null) return;
         OAuthAuthorizationResult result = ServletOAuthAuthorizationServer.beginAuthorizationResultFor(
-                this.issuer.server, request, session.binding());
+                this.issuer.server, request, session.browserBinding());
         if (result instanceof OAuthAuthorizationResult.InteractionRequired interaction)
             send(response, 200, interaction.getInteraction().getInteractionValue());
         else if (result instanceof OAuthAuthorizationResult.Completed completed)
@@ -285,7 +287,7 @@ public final class M12Servlet extends HttpServlet {
                 .authorizedScopesByResource(Map.of(M12Issuer.RESOURCE, Set.of("read")))
                 .refreshTokenPermitted(true).build();
         OAuthAuthorizationResult result = this.issuer.server.completeAuthorizationResult(
-                interaction, session.binding(), decision);
+                interaction, session.browserBinding(), decision);
         if (result instanceof OAuthAuthorizationResult.Completed completed)
             ServletOAuthAuthorizationServer.writeResponse(response, completed.getResponse());
         else if (result instanceof OAuthAuthorizationResult.Rejected rejected)
@@ -326,7 +328,7 @@ public final class M12Servlet extends HttpServlet {
         if (session == null) return;
         WebAuthnRegistrationOptions options = WebAuthnRegistrationOptions.withUserHandle(USER)
                 .userName("alice").userDisplayName("Alice Example").build();
-        WebAuthnRegistrationRequestResult result = this.relyingParty.beginRegistrationResult(options, session.binding());
+        WebAuthnRegistrationRequestResult result = this.relyingParty.beginRegistrationResult(options, session.operationBinding());
         if (result instanceof WebAuthnRegistrationRequestResult.Prepared prepared)
             ServletWebAuthn.writeBrowserRequest(response, prepared.getRequest());
         else if (result instanceof WebAuthnRegistrationRequestResult.ReconciliationRequired) reconciliation(response);
@@ -338,8 +340,8 @@ public final class M12Servlet extends HttpServlet {
         Session session = browserSession(request, response);
         if (session == null) return;
         WebAuthnAuthenticationRequestResult result = reauthentication
-                ? this.relyingParty.beginReauthenticationResult(USER, "transfer", session.binding())
-                : this.relyingParty.beginAuthenticationResult(session.binding());
+                ? this.relyingParty.beginReauthenticationResult(USER, "transfer", session.operationBinding())
+                : this.relyingParty.beginAuthenticationResult(session.operationBinding());
         if (result instanceof WebAuthnAuthenticationRequestResult.Prepared prepared)
             ServletWebAuthn.writeBrowserRequest(response, prepared.getRequest());
         else if (result instanceof WebAuthnAuthenticationRequestResult.ReconciliationRequired) reconciliation(response);
@@ -354,7 +356,7 @@ public final class M12Servlet extends HttpServlet {
         ServletWebAuthnBodyResult body = ServletWebAuthn.bodyResultFor(this.settings, request);
         if (!(body instanceof ServletWebAuthnBodyResult.Read read)) { bodyFailure(response, body); return; }
         WebAuthnRegistrationResult result = this.relyingParty.completeRegistrationResult(
-                ceremony, read.getBodyWithPersonalData(), session.binding());
+                ceremony, read.getBodyWithPersonalData(), session.operationBinding());
         if (result instanceof WebAuthnRegistrationResult.Succeeded) send(response, 204, "");
         else if (result instanceof WebAuthnRegistrationResult.ReconciliationRequired) reconciliation(response);
         else if (result instanceof WebAuthnRegistrationResult.Rejected) send(response, 400, "");
@@ -369,11 +371,22 @@ public final class M12Servlet extends HttpServlet {
         if (ceremony == null) { send(response, 400, ""); return; }
         ServletWebAuthnBodyResult body = ServletWebAuthn.bodyResultFor(this.settings, request);
         if (!(body instanceof ServletWebAuthnBodyResult.Read read)) { bodyFailure(response, body); return; }
-        WebAuthnAuthenticationResult result = reauthentication
-                ? this.relyingParty.completeReauthenticationResult(USER, "transfer",
-                        ceremony, read.getBodyWithPersonalData(), session.binding())
-                : this.relyingParty.completeAuthenticationResult(
-                        ceremony, read.getBodyWithPersonalData(), session.binding());
+        if (reauthentication) {
+            WebAuthnReauthenticationResult result = this.relyingParty.completeReauthenticationResult(USER, "transfer",
+                    ceremony, read.getBodyWithPersonalData(), session.operationBinding());
+            if (result instanceof WebAuthnReauthenticationResult.Succeeded succeeded) {
+                if (!MessageDigest.isEqual(USER, succeeded.getReauthentication().getUserHandle())) {
+                    send(response, 500, ""); return;
+                }
+                send(response, 204, "");
+            } else if (result instanceof WebAuthnReauthenticationResult.ReconciliationRequired) reconciliation(response);
+            else if (result instanceof WebAuthnReauthenticationResult.Indeterminate) { this.unknownResults.incrementAndGet(); send(response, 503, ""); }
+            else if (result instanceof WebAuthnReauthenticationResult.Rejected) send(response, 400, "");
+            else send(response, 503, "");
+            return;
+        }
+        WebAuthnAuthenticationResult result = this.relyingParty.completeAuthenticationResult(
+                ceremony, read.getBodyWithPersonalData(), session.operationBinding());
         if (result instanceof WebAuthnAuthenticationResult.Succeeded succeeded) {
             WebAuthnAuthentication proof = succeeded.getAuthentication();
             if (!MessageDigest.isEqual(USER, proof.getUserHandle())

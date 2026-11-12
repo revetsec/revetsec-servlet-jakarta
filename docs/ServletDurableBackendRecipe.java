@@ -15,6 +15,7 @@
  */
 package example;
 
+import com.revetsec.BrowserBinding;
 import com.revetsec.StateSealer;
 import com.revetsec.oauth.AuthorizationCompletionResult;
 import com.revetsec.oauth.AuthorizationResponse;
@@ -59,7 +60,7 @@ public final class ServletDurableBackendRecipe {
 
     /** Only SAVED emits the redirect; the host handles collision, capacity and unavailable/indeterminate outcomes. */
     public static PendingAuthorizationSaveResult writeOAuthRedirect(AuthorizationRedirect redirect,
-            PostgresqlPendingAuthorizationStore store, String browserBinding,
+            PostgresqlPendingAuthorizationStore store, BrowserBinding browserBinding,
             HttpServletResponse response) {
         PendingAuthorizationSaveResult saved = redirect.getPendingAuthorization().saveToResult(store, browserBinding);
         if (saved == PendingAuthorizationSaveResult.SAVED)
@@ -69,7 +70,7 @@ public final class ServletDurableBackendRecipe {
 
     /** Pass only a successful callback parse; consume once across nodes and clear pending browser state on every outcome. */
     public static AuthorizationCompletionResult completeOAuth(OAuthClient client,
-            PostgresqlPendingAuthorizationStore store, String browserBinding,
+            PostgresqlPendingAuthorizationStore store, BrowserBinding browserBinding,
             URI configuredCallback, AuthorizationResponse untrusted) {
         return ServletWorkflowRecipes.completeOAuth(client,
                 PendingAuthorizationSource.fromStore(store, browserBinding), configuredCallback, untrusted);

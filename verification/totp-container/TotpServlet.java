@@ -13,6 +13,7 @@
  */
 package example;
 
+import com.revetsec.OperationBinding;
 import com.revetsec.SealingKey;
 import com.revetsec.StateSealer;
 import com.revetsec.json.JsonArray;
@@ -198,7 +199,7 @@ public final class TotpServlet extends HttpServlet {
         if (!get(request, response)) return;
         if (!this.gate.open) { send(response, 503, error("Temporarily unavailable"), false); return; }
         String token = random();
-        Session session = new Session(token, random(), random(), "PRIMARY");
+        Session session = new Session(token, random(), OperationBinding.fresh(), "PRIMARY");
         this.sessions.put(token, session);
         sessionHeaders(response, session);
         send(response, 200, JsonObject.builder().put("primaryPending", true).build(), false);
@@ -270,7 +271,7 @@ public final class TotpServlet extends HttpServlet {
             if (result instanceof RecoveryCodeUseResult.Succeeded success) {
                 RecoveryCodeUse proof = success.getUse();
                 if (proof.getRecoveryEpoch().equals(EPOCH) && proof.getAccountId().equals(ACCOUNT)
-                        && proof.getOperationBinding().equals(session.binding)
+                        && proof.getOperationBinding().toSecretString().equals(session.binding.toSecretString())
                         && proof.getFactorId().equals(this.factorId)) {
                     rotateSession(session, response, "RECOVERY_CODE");
                     send(response, 200, JsonObject.builder().put("recoverySession", true).build(), false);
@@ -290,7 +291,7 @@ public final class TotpServlet extends HttpServlet {
             if (result instanceof TotpVerificationResult.Succeeded success) {
                 TotpVerification proof = success.getVerification();
                 if (proof.getRecoveryEpoch().equals(EPOCH) && proof.getAccountId().equals(ACCOUNT)
-                        && proof.getOperationBinding().equals(session.binding)
+                        && proof.getOperationBinding().toSecretString().equals(session.binding.toSecretString())
                         && proof.getFactorId().equals(this.factorId)) {
                     rotateSession(session, response, "TOTP");
                     send(response, 200, JsonObject.builder().put("authenticated", true).build(), false);
@@ -465,17 +466,17 @@ public final class TotpServlet extends HttpServlet {
     private void rotateSession(@NonNull Session old, @NonNull HttpServletResponse response,
             @NonNull String method) {
         this.sessions.remove(old.token);
-        Session fresh = new Session(random(), random(), random(), method);
+        Session fresh = new Session(random(), random(), OperationBinding.fresh(), method);
         this.sessions.put(fresh.token, fresh);
         sessionHeaders(response, fresh);
     }
     private static final class Session {
         private final @NonNull String token;
         private final @NonNull String csrf;
-        private final @NonNull String binding;
+        private final @NonNull OperationBinding binding;
         private final @NonNull String method;
         private @NonNull String enrollmentId = "";
-        private Session(@NonNull String token, @NonNull String csrf, @NonNull String binding,
+        private Session(@NonNull String token, @NonNull String csrf, @NonNull OperationBinding binding,
                 @NonNull String method) {
             this.token = token; this.csrf = csrf; this.binding = binding; this.method = method;
         }
