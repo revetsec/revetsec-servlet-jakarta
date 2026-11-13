@@ -319,6 +319,16 @@ class WorkflowTests(unittest.TestCase):
     def test_builds_on_every_supported_jdk(self):
         self.assertIn("jdk: ['17', '21', '25', '27']", self.jobs()["test"])
 
+    def test_reviewed_tomcat_runtime_uses_the_stable_apache_archive(self):
+        expected_url = ("https://archive.apache.org/dist/tomcat/tomcat-11/v11.0.27/bin/"
+                        "apache-tomcat-11.0.27.tar.gz")
+        for name in ("m12-container", "scim-container", "saml-container"):
+            runtime = json.loads((SCRIPT_DIRECTORY.parent / "verification" / name / "runtime.json").read_text())
+            with self.subTest(name=name):
+                self.assertEqual("11.0.27", runtime["version"])
+                self.assertEqual(expected_url, runtime["url"])
+                self.assertRegex(runtime["archiveSha512"], r"^[0-9a-f]{128}$")
+
     def test_totp_and_jwks_real_container_jobs_keep_pinned_inputs_and_receipts(self):
         for name in ("totp", "jwks"):
             job = self.jobs()[name + "-container"]
