@@ -4,7 +4,7 @@
 
 Pull requests and bug reports are welcomed. For enhancement pull requests, please ask first to save time! It's possible the proposed enhancement is outside the scope or design goals of the project.
 
-This adapter is pre-release and follows Revetsec core's API, which is still being designed, so please open an issue before starting any change that touches public API. A change that needs something new from core starts in the [core repository](https://github.com/revetsec/revetsec).
+This adapter's public API follows its 1.x compatibility policy, so please open an issue before starting a public-API change. A change that needs something new from core starts in the [core repository](https://github.com/revetsec/revetsec).
 
 Report suspected security vulnerabilities privately as described in [SECURITY.md](SECURITY.md), not in an issue or pull request.
 
@@ -14,18 +14,21 @@ No contributor license agreement is required at this time.
 
 You need JDK 17 or newer (17.0.3 at minimum), Maven 3.9 or newer, and Python 3 for the drift check. The adapter targets Java 17 whichever JDK runs the build.
 
-Revetsec core is not published yet, so install it from a checkout next to this one first:
+The build resolves Revetsec core 1.0.0 from Maven Central. To test a coordinated core change, install the matching core source first; otherwise run the adapter build directly:
 
 ```shell
 $ export JAVA_HOME=/absolute/path/to/jdk-17
 $ export PATH="$JAVA_HOME/bin:$PATH"
-$ mvn -B -ntp -f ../revetsec/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
 $ mvn -B -ntp -Dmaven.javadoc.skip=true verify
 ```
 
-The second command compiles, runs every test (including the contract tests) and packages the JAR. Use `install` instead of `verify` to put `1.0.0-SNAPSHOT` into your local Maven repository.
+The build compiles, runs every test (including the contract tests) and packages the JAR. Use `install` instead of `verify` to put `1.0.0` into your local Maven repository.
 
-The routine CI verification commands pass `-Dmaven.javadoc.skip=true`. The adapter now has public helpers with Javadoc in `src/main/java`; that flag separates compilation and tests from Javadoc generation. The Javadoc plugin is configured in `pom.xml` for its separate qualification.
+The routine CI verification commands pass `-Dmaven.javadoc.skip=true`. A dedicated gate runs Maven on Java 17 and Javadoc on checksum-pinned Corretto 26, with warnings fatal. To run it locally after installing core, point `REVETSEC_JAVADOC_HOME` at a JDK 26 and leave the skip flag off:
+
+```shell
+$ REVETSEC_JAVADOC_HOME=/absolute/path/to/jdk-26 mvn -B -ntp -DskipTests -Dmaven.javadoc.failOnWarnings=true verify
+```
 
 #### Gate Commands
 
@@ -35,6 +38,7 @@ CI runs these checks on every pull request. Run the ones your change affects bef
 | --- | --- | --- |
 | Build and tests | 17, 21, 25, 27 | `mvn -B -ntp -Dmaven.javadoc.skip=true verify` |
 | Error Prone, NullAway and SpotBugs | 21 | `mvn -B -ntp -Dmaven.javadoc.skip=true -Pstatic-analysis,spotbugs verify` |
+| Warnings-fatal Javadoc | Maven 17 / Javadoc 26 | `REVETSEC_JAVADOC_HOME=/absolute/path/to/jdk-26 mvn -B -ntp -DskipTests -Dmaven.javadoc.failOnWarnings=true verify` |
 | Drift from core | none | `python3 scripts/verify-core-drift.py --core-directory ../revetsec` |
 | Drift-check self-tests | none | `python3 -m unittest discover -s scripts -p 'test_*.py'` |
 
@@ -67,3 +71,5 @@ A core change that breaks this adapter lands as a pair: this adapter's pull requ
 #### Publishing
 
 Publishing is a project-owner operation, not the last step of an ordinary contributor build. Do not run `mvn deploy`. Releases are signed and published to Maven Central by the project owner, only together with or after the Revetsec core release they require. Snapshot builds are not published.
+
+The owner follows core's [release runbook](https://github.com/revetsec/revetsec/blob/main/RELEASING.md), including the guarded local bundle and pre-upload verification.

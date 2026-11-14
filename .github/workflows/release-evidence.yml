@@ -1,0 +1,197 @@
+name: Release Evidence
+
+# A verified signed tag produces an unsigned, reproducible payload set and GitHub
+# attestations. This workflow has no Central or signing credentials and never deploys.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-evidence-${{ github.ref }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  attest:
+    name: Build and attest release payloads
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - name: Check out the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate the release coordinates and SCM tag
+        id: release
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          python3 - "$RELEASE_REF" "$GITHUB_OUTPUT" <<'PY'
+          import pathlib
+          import sys
+          import xml.etree.ElementTree as ET
+
+          ref, output_path = sys.argv[1:]
+          root = ET.parse("pom.xml").getroot()
+          namespace = {"m": "http://maven.apache.org/POM/4.0.0"}
+          group_id = root.findtext("m:groupId", namespaces=namespace)
+          artifact_id = root.findtext("m:artifactId", namespaces=namespace)
+          version = root.findtext("m:version", namespaces=namespace)
+          core_version = root.findtext("m:properties/m:revetsec.version", namespaces=namespace)
+          scm_tag = root.findtext("m:scm/m:tag", namespaces=namespace)
+          if group_id != "com.revetsec":
+              raise SystemExit(f"unexpected release groupId: {group_id!r}")
+          if not artifact_id or not version or version.endswith("-SNAPSHOT"):
+              raise SystemExit("release tags require a complete non-SNAPSHOT project version")
+          if not core_version or core_version.endswith("-SNAPSHOT"):
+              raise SystemExit("release adapters require a released Revetsec core version")
+          if ref != f"v{version}" or scm_tag != ref:
+              raise SystemExit(
+                  f"tag/POM mismatch: ref={ref!r}, version={version!r}, scm.tag={scm_tag!r}"
+              )
+          with pathlib.Path(output_path).open("a", encoding="utf-8") as output:
+              print(f"artifact_id={artifact_id}", file=output)
+              print(f"version={version}", file=output)
+          PY
+
+      - name: Require a GitHub-verified signed tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          tag_json=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_REF}")
+          tag_type=$(jq -r '.object.type' <<<"$tag_json")
+          tag_sha=$(jq -r '.object.sha' <<<"$tag_json")
+          if [[ "$tag_type" != tag ]]; then
+            echo "::error::Release ref must be an annotated, signed tag."
+            exit 1
+          fi
+          signed_tag_json=$(gh api "repos/${GITHUB_REPOSITORY}/git/tags/${tag_sha}")
+          verified=$(jq -r '.verification.verified' <<<"$signed_tag_json")
+          target_type=$(jq -r '.object.type' <<<"$signed_tag_json")
+          target_sha=$(jq -r '.object.sha' <<<"$signed_tag_json")
+          if [[ "$verified" != true || "$target_type" != commit ]]; then
+            echo "::error::The release tag must have a GitHub-verified signature and point directly to a commit."
+            exit 1
+          fi
+          if [[ "$(git rev-parse HEAD)" != "$target_sha" ]]; then
+            echo "::error::The checked-out commit does not match the signed release tag target."
+            exit 1
+          fi
+
+      - name: Install the checksum-pinned Javadoc JDK (Corretto 26)
+        run: >-
+          bash .github/scripts/install-pinned-corretto-linux-x64.sh
+          javadocJava "${RUNNER_TEMP}" "${GITHUB_ENV}"
+          "${RUNNER_TEMP}/release-javadoc-java-distribution.txt"
+
+      - name: Set up Corretto 17
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: corretto
+          java-version: '17'
+          cache: maven
+
+      - name: Build the unsigned release payloads
+        run: >-
+          mvn -B -ntp -Prelease -Dgpg.skip=true -Dcentral.skipUpload=true
+          -Dmaven.javadoc.failOnWarnings=true clean verify
+
+      - name: Collect payloads and checksums
+        env:
+          ARTIFACT_ID: ${{ steps.release.outputs.artifact_id }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          mkdir release-evidence
+          payloads=(
+            "release-evidence/${ARTIFACT_ID}-${VERSION}.pom"
+            "release-evidence/${ARTIFACT_ID}-${VERSION}.jar"
+            "release-evidence/${ARTIFACT_ID}-${VERSION}-sources.jar"
+            "release-evidence/${ARTIFACT_ID}-${VERSION}-javadoc.jar"
+            "release-evidence/${ARTIFACT_ID}-${VERSION}-cyclonedx.json"
+          )
+          cp pom.xml "${payloads[0]}"
+          cp "target/${ARTIFACT_ID}-${VERSION}.jar" "${payloads[1]}"
+          cp "target/${ARTIFACT_ID}-${VERSION}-sources.jar" "${payloads[2]}"
+          cp "target/${ARTIFACT_ID}-${VERSION}-javadoc.jar" "${payloads[3]}"
+          cp "target/${ARTIFACT_ID}-${VERSION}-cyclonedx.json" "${payloads[4]}"
+          sha256sum "${payloads[@]}" > release-evidence/SHA256SUMS
+
+      - name: Attest the release payload provenance
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release-evidence/*
+
+      - name: Bind the main JAR to its CycloneDX SBOM
+        id: sbom
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: release-evidence/${{ steps.release.outputs.artifact_id }}-${{ steps.release.outputs.version }}.jar
+          sbom-path: release-evidence/${{ steps.release.outputs.artifact_id }}-${{ steps.release.outputs.version }}-cyclonedx.json
+
+      - name: Record the exact attestation identities
+        env:
+          PROVENANCE_ID: ${{ steps.provenance.outputs.attestation-id }}
+          PROVENANCE_URL: ${{ steps.provenance.outputs.attestation-url }}
+          SBOM_ID: ${{ steps.sbom.outputs.attestation-id }}
+          SBOM_URL: ${{ steps.sbom.outputs.attestation-url }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          repository = os.environ["GITHUB_REPOSITORY"]
+          run_id = int(os.environ["GITHUB_RUN_ID"])
+          run_attempt = int(os.environ["GITHUB_RUN_ATTEMPT"])
+          document = {
+              "schema": "revetsec.release-attestations.v1",
+              "repository": repository,
+              "run": {
+                  "id": run_id,
+                  "attempt": run_attempt,
+                  "url": f"https://github.com/{repository}/actions/runs/{run_id}",
+              },
+              "source": {
+                  "ref": os.environ["GITHUB_REF"],
+                  "sha": os.environ["GITHUB_SHA"],
+              },
+              "attestations": {
+                  "provenance": {
+                      "id": int(os.environ["PROVENANCE_ID"]),
+                      "url": os.environ["PROVENANCE_URL"],
+                  },
+                  "sbom": {
+                      "id": int(os.environ["SBOM_ID"]),
+                      "url": os.environ["SBOM_URL"],
+                  },
+              },
+          }
+          Path("release-evidence/ATTESTATIONS.json").write_text(
+              json.dumps(document, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Upload the unsigned evidence set
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-evidence-${{ steps.release.outputs.artifact_id }}-${{ steps.release.outputs.version }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: release-evidence
+          if-no-files-found: error
+          retention-days: 90

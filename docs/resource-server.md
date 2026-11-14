@@ -154,9 +154,9 @@ and a fresh evidence directory:
 ```sh
 python3 verification/resource-server-container/calibrate.py \
   --tomcat-archive /private/tmp/apache-tomcat-11.0.27.tar.gz \
-  --core-jar ../revetsec/target/revetsec-1.0.0-SNAPSHOT.jar \
+  --core-jar ../revetsec/target/revetsec-1.0.0.jar \
   --core-sha256 '<exact selected core SHA256>' \
-  --adapter-jar target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar \
+  --adapter-jar target/revetsec-servlet-jakarta-1.0.0.jar \
   --adapter-sha256 '<exact selected adapter SHA256>' \
   --java-home "$JAVA_HOME" \
   --output /private/tmp/revetsec-s2-jakarta-evidence

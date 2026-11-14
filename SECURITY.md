@@ -14,13 +14,12 @@ GitHub private vulnerability reporting is planned for these repositories but is 
 
 ## Supported Versions
 
-No version of Revetsec has been released. The version stays `1.0.0-SNAPSHOT` until the first release, 1.0.0.
+Revetsec 1.0.x is the current supported release line. Security fixes are released on the newest 1.0.x version; development source between releases is not a supported build, although reports against it are welcome.
 
 | Release line | Status |
 | --- | --- |
-| `1.0.0-SNAPSHOT` and unreleased source | Unsupported development builds |
-
-The supported-versions table and end-of-life policy will be set here with 1.0.0. Reports against development builds are still welcome.
+| `1.0.x` | Supported |
+| Development source between releases | Unsupported builds; reports welcome |
 
 ## Scope
 

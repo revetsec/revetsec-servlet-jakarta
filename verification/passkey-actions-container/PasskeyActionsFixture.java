@@ -39,7 +39,7 @@ final class PasskeyActionsFixture {
     static final byte @NonNull [] ACCOUNT={4,5,6};
     final @NonNull AppClock clock=new AppClock();
     final @NonNull Gate gate=new Gate(this.clock);
-    final @NonNull M12FaultStore store=new M12FaultStore(InMemoryWebAuthnStore.fromLimits(512,4_000_000));
+    final @NonNull M12FaultStore store=new M12FaultStore(InMemoryWebAuthnStore.fromLimits(512,4_000_000L));
     final @NonNull PausingStore pausedStore=new PausingStore(this.store);
     final @NonNull WebAuthnRelyingParty rp;
     final @NonNull ServletPasskeyActionsRecipe application;
@@ -79,7 +79,7 @@ final class PasskeyActionsFixture {
         if(!Set.of("valid","namespace","rp","account","purpose","ceremony","pending","foreign-owner").contains(variant))throw new IllegalArgumentException("Fixed proof fixture variant");
         String rpId=variant.equals("rp")?"other.example.com":RP,ns=variant.equals("namespace")?"other-namespace":NAMESPACE,purpose=variant.equals("purpose")?"other-purpose":"demo-sensitive-action";byte[] user=variant.equals("account")?new byte[]{8,8,8}:ACCOUNT;
         Authenticator auth=new Authenticator(new byte[]{11,12,13},rpId,"https://"+rpId,user);byte[] bytes=new byte[32];new SecureRandom().nextBytes(bytes);StateSealer sealer=StateSealer.withActiveKey(SealingKey.fromBase64("fixture",Base64.getEncoder().encodeToString(bytes))).build();Arrays.fill(bytes,(byte)0);
-        WebAuthnRelyingParty actual=WebAuthnRelyingParty.withRelyingPartyId(rpId).relyingPartyName("Actual foreign fixture").allowedOrigins(Set.of("https://"+rpId)).credentialNamespace(ns).store(InMemoryWebAuthnStore.fromLimits(64,1_000_000)).stateSealer(sealer).recoveryGate(this.gate).build();
+        WebAuthnRelyingParty actual=WebAuthnRelyingParty.withRelyingPartyId(rpId).relyingPartyName("Actual foreign fixture").allowedOrigins(Set.of("https://"+rpId)).credentialNamespace(ns).store(InMemoryWebAuthnStore.fromLimits(64,1_000_000L)).stateSealer(sealer).recoveryGate(this.gate).build();
         var session=this.application.sessions.rotate(this.application.sessions.begin(),true);var binding=session.binding;
         WebAuthnRegistrationRequestResult start=actual.beginRegistrationResult(WebAuthnRegistrationOptions.withUserHandle(user).userName("fixture").userDisplayName("Fixture").build(),binding);if(!(start instanceof WebAuthnRegistrationRequestResult.Prepared registration))throw new IllegalStateException("Genuine scope registration start");
         String challenge=((JsonString)registration.getRequest().getPublicKeyOptions().getMembers().get("challenge")).getValue();if(!(actual.completeRegistrationResult(registration.getRequest().getCeremonyId(),auth.registration(challenge),binding)instanceof WebAuthnRegistrationResult.Succeeded))throw new IllegalStateException("Genuine scope registration finish");

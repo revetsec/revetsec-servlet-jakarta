@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.revetsec</groupId>
 	<artifactId>revetsec-servlet-jakarta</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<packaging>jar</packaging>
 	<name>Revetsec Servlet Adapter (jakarta)</name>
 	<description>Revetsec helpers for jakarta.servlet applications: they pass HttpServletRequests to Revetsec core as raw input and write Revetsec results to HttpServletResponses.</description>
@@ -30,6 +30,7 @@
 		<connection>scm:git:git@github.com:revetsec/revetsec-servlet-jakarta.git</connection>
 		<developerConnection>scm:git:git@github.com:revetsec/revetsec-servlet-jakarta.git</developerConnection>
 		<url>https://github.com/revetsec/revetsec-servlet-jakarta</url>
+		<tag>v1.0.0</tag>
 	</scm>
 
 	<!-- Sibling precedent. SNAPSHOTs are not published unless the owner authorizes it (D48). -->
@@ -55,7 +56,7 @@
 		<!-- Adapter 1.x requires Revetsec core 1.0.0 or later. Until core 1.0.0 is released, CI builds core from
 		     the commit pinned in .github/workflows/ci.yml, and scripts/verify-core-drift.py checks that the pinned
 		     core's version equals this property. Never override it on the command line. -->
-		<revetsec.version>1.0.0-SNAPSHOT</revetsec.version>
+		<revetsec.version>1.0.0</revetsec.version>
 		<!-- The Jakarta Servlet API (Servlet 6.1, plan 10.1). The servlet container supplies it at runtime. -->
 		<jakarta.servlet.version>6.1.0</jakarta.servlet.version>
 
@@ -67,7 +68,10 @@
 		<maven.jar.plugin.version>3.5.1</maven.jar.plugin.version>
 		<maven.javadoc.plugin.version>3.12.0</maven.javadoc.plugin.version>
 		<maven.gpg.plugin.version>3.2.8</maven.gpg.plugin.version>
+		<cyclonedx.maven.plugin.version>2.9.3</cyclonedx.maven.plugin.version>
 		<central.publishing.plugin.version>0.12.0</central.publishing.plugin.version>
+		<!-- A release build creates a complete local Central bundle. Upload requires an explicit owner override. -->
+		<central.skipUpload>true</central.skipUpload>
 
 		<!-- Analysis profiles -->
 		<error.prone.version>2.50.0</error.prone.version>
@@ -314,6 +318,9 @@
 						<groupId>org.apache.maven.plugins</groupId>
 						<artifactId>maven-gpg-plugin</artifactId>
 						<version>${maven.gpg.plugin.version}</version>
+						<configuration>
+							<bestPractices>true</bestPractices>
+						</configuration>
 						<executions>
 							<execution>
 								<id>sign-artifacts</id>
@@ -325,6 +332,33 @@
 						</executions>
 					</plugin>
 					<plugin>
+						<groupId>org.cyclonedx</groupId>
+						<artifactId>cyclonedx-maven-plugin</artifactId>
+						<version>${cyclonedx.maven.plugin.version}</version>
+						<executions>
+							<execution>
+								<id>release-sbom</id>
+								<phase>package</phase>
+								<goals>
+									<goal>makeBom</goal>
+								</goals>
+								<configuration>
+									<projectType>library</projectType>
+									<schemaVersion>1.6</schemaVersion>
+									<includeBomSerialNumber>false</includeBomSerialNumber>
+									<includeCompileScope>false</includeCompileScope>
+									<includeProvidedScope>false</includeProvidedScope>
+									<includeRuntimeScope>false</includeRuntimeScope>
+									<includeSystemScope>false</includeSystemScope>
+									<includeTestScope>false</includeTestScope>
+									<includeLicenseText>false</includeLicenseText>
+									<outputFormat>json</outputFormat>
+									<outputName>${project.build.finalName}-cyclonedx</outputName>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
 						<groupId>org.sonatype.central</groupId>
 						<artifactId>central-publishing-maven-plugin</artifactId>
 						<version>${central.publishing.plugin.version}</version>
@@ -332,6 +366,7 @@
 						<configuration>
 							<publishingServerId>central-portal</publishingServerId>
 							<autoPublish>false</autoPublish>
+							<skipUpload>${central.skipUpload}</skipUpload>
 						</configuration>
 					</plugin>
 				</plugins>

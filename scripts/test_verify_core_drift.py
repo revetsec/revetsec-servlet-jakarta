@@ -39,12 +39,12 @@ SPEC.loader.exec_module(VERIFIER)
 COMMIT = "a" * 40
 POM_OPEN = '<project xmlns="http://maven.apache.org/POM/4.0.0">'
 CORE_POM = POM_OPEN + """
-<groupId>com.revetsec</groupId><artifactId>revetsec</artifactId><version>1.0.0-SNAPSHOT</version>
+<groupId>com.revetsec</groupId><artifactId>revetsec</artifactId><version>1.0.0</version>
 </project>
 """
 ADAPTER_POM = POM_OPEN + """
-<groupId>com.revetsec</groupId><artifactId>revetsec-example</artifactId><version>1.0.0-SNAPSHOT</version>
-<properties><revetsec.version>1.0.0-SNAPSHOT</revetsec.version></properties>
+<groupId>com.revetsec</groupId><artifactId>revetsec-example</artifactId><version>1.0.0</version>
+<properties><revetsec.version>1.0.0</revetsec.version></properties>
 <dependencies><dependency><groupId>com.revetsec</groupId><artifactId>revetsec</artifactId>
 <version>${revetsec.version}</version><scope>provided</scope></dependency></dependencies>
 </project>
@@ -130,16 +130,16 @@ class CoreDriftTests(unittest.TestCase):
         self.assert_single_problem("builds com.revetsec:other")
 
     def test_rejects_a_version_mismatch(self):
-        self.write(self.core, "pom.xml", CORE_POM.replace("1.0.0-SNAPSHOT", "1.1.0-SNAPSHOT"))
+        self.write(self.core, "pom.xml", CORE_POM.replace("1.0.0", "1.1.0-SNAPSHOT"))
         self.assert_single_problem("Core checkout is version 1.1.0-SNAPSHOT")
 
     def test_rejects_an_unresolved_core_version(self):
-        self.write(self.core, "pom.xml", CORE_POM.replace("1.0.0-SNAPSHOT", "${revision}"))
+        self.write(self.core, "pom.xml", CORE_POM.replace("1.0.0", "${revision}"))
         with self.assertRaisesRegex(VERIFIER.DriftError, "literal"):
             self.problems()
 
     def test_rejects_a_dependency_that_bypasses_the_declared_version(self):
-        self.write(self.adapter, "pom.xml", ADAPTER_POM.replace("${revetsec.version}", "1.0.0-SNAPSHOT"))
+        self.write(self.adapter, "pom.xml", ADAPTER_POM.replace("${revetsec.version}", "1.0.0"))
         self.assert_single_problem("must use the version ${revetsec.version}")
 
     def test_rejects_a_core_dependency_that_is_not_provided(self):
@@ -259,7 +259,7 @@ class CoreDriftTests(unittest.TestCase):
             status = VERIFIER.main(["--core-directory", str(self.core), "--adapter-directory", str(self.adapter),
                                     "--expected-commit", COMMIT])
         self.assertEqual(0, status)
-        self.assertIn("No drift from Revetsec core com.revetsec:revetsec:1.0.0-SNAPSHOT at " + COMMIT, output.getvalue())
+        self.assertIn("No drift from Revetsec core com.revetsec:revetsec:1.0.0 at " + COMMIT, output.getvalue())
 
 
 class WorkflowTests(unittest.TestCase):
@@ -282,8 +282,8 @@ class WorkflowTests(unittest.TestCase):
     def test_every_core_checkout_uses_the_pin_after_validating_it(self):
         core_jobs = {name: job for name, job in self.jobs().items()
                      if "repository: revetsec/revetsec" in job}
-        self.assertEqual({"drift", "test", "static-analysis", "scim-container", "m12-container", "saml-container",
-                          "totp-container", "jwks-container"},
+        self.assertEqual({"drift", "test", "javadoc", "static-analysis", "scim-container", "m12-container",
+                          "saml-container", "totp-container", "jwks-container"},
                          set(core_jobs))
         for name, job in core_jobs.items():
             with self.subTest(job=name):
@@ -298,8 +298,8 @@ class WorkflowTests(unittest.TestCase):
 
     def test_core_is_installed_without_tests_or_javadoc(self):
         build_jobs = {name: job for name, job in self.jobs().items() if "-f core/pom.xml" in job}
-        self.assertEqual({"test", "static-analysis", "scim-container", "m12-container", "saml-container",
-                          "totp-container", "jwks-container"},
+        self.assertEqual({"test", "javadoc", "static-analysis", "scim-container", "m12-container",
+                          "saml-container", "totp-container", "jwks-container"},
                          set(build_jobs))
         for name, job in build_jobs.items():
             with self.subTest(job=name):
@@ -308,6 +308,14 @@ class WorkflowTests(unittest.TestCase):
                 self.assertIn("-DskipTests", installs[0])
                 self.assertIn("-Dmaven.javadoc.skip=true", installs[0])
                 self.assertTrue(installs[0].endswith(" install"), installs[0])
+
+    def test_javadoc_gate_uses_the_pinned_toolchain_and_fails_on_warnings(self):
+        job = self.jobs()["javadoc"]
+        self.assertIn("needs: drift", job)
+        self.assertIn("install-pinned-corretto-linux-x64.sh", job)
+        self.assertIn('javadocJava "${RUNNER_TEMP}" "${GITHUB_ENV}"', job)
+        self.assertIn("-Dmaven.javadoc.failOnWarnings=true verify", job)
+        self.assertNotIn("continue-on-error", job)
 
     def test_never_overrides_the_declared_core_version(self):
         self.assertNotIn("-Drevetsec.version", self.workflow)
@@ -338,8 +346,8 @@ class WorkflowTests(unittest.TestCase):
                 self.assertIn('adapter/verification/m12-container/runtime.json', job)
                 self.assertIn('python3 adapter/verification/' + name + '-container/run.py', job)
                 self.assertIn('--tomcat-archive "$RUNNER_TEMP/tomcat.tar.gz"', job)
-                self.assertIn('--core-jar core/target/revetsec-1.0.0-SNAPSHOT.jar', job)
-                self.assertIn('--adapter-jar adapter/target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar', job)
+                self.assertIn('--core-jar core/target/revetsec-1.0.0.jar', job)
+                self.assertIn('--adapter-jar adapter/target/revetsec-servlet-jakarta-1.0.0.jar', job)
                 self.assertIn('--java-home "$JAVA_HOME"', job)
                 self.assertIn('if: always()', job)
                 self.assertIn('path: ${{ runner.temp }}/' + name + '-container-evidence/RESULT.json', job)

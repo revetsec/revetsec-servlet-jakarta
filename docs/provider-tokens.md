@@ -97,7 +97,7 @@ Use a fresh private output directory:
 ```sh
 python3 verification/provider-token-container/calibrate.py \
   --tomcat-archive /private/tmp/apache-tomcat-11.0.27.tar.gz \
-  --core-jar ../revetsec/target/revetsec-1.0.0-SNAPSHOT.jar \
+  --core-jar ../revetsec/target/revetsec-1.0.0.jar \
   --core-sha256 '<exact lowercase SHA256 of the selected JAR>' \
   --java-home "$JAVA_HOME" \
   --output /private/tmp/revetsec-provider-jakarta-evidence

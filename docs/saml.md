@@ -26,8 +26,8 @@ The runner verifies the reviewed archive checksum in [runtime.json](../verificat
 ```shell
 python3 verification/saml-container/run.py \
   --tomcat-archive /private/tmp/apache-tomcat-11.0.27.tar.gz \
-  --core-jar ../revetsec/target/revetsec-1.0.0-SNAPSHOT.jar \
-  --adapter-jar target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar \
+  --core-jar ../revetsec/target/revetsec-1.0.0.jar \
+  --adapter-jar target/revetsec-servlet-jakarta-1.0.0.jar \
   --java-home "$JAVA_HOME" \
   --output /private/tmp/revetsec-post-logout-jakarta-evidence
 ```

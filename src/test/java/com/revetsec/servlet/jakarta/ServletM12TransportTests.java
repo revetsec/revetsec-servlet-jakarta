@@ -214,7 +214,7 @@ final class ServletM12TransportTests {
         };
         WebAuthnRelyingParty party = WebAuthnRelyingParty.withRelyingPartyId("login.example.com")
                 .relyingPartyName("Example").allowedOrigins(Set.of("https://login.example.com"))
-                .credentialNamespace("tenant").store(InMemoryWebAuthnStore.fromLimits(128, 2_000_000))
+                .credentialNamespace("tenant").store(InMemoryWebAuthnStore.fromLimits(128, 2_000_000L))
                 .stateSealer(sealer).recoveryGate(gate).build();
         WebAuthnBrowserRequest prepared = assertInstanceOf(WebAuthnAuthenticationRequestResult.Prepared.class,
                 party.beginAuthenticationResult(com.revetsec.OperationBinding.fromTrustedPersistence(

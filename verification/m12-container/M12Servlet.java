@@ -87,7 +87,7 @@ public final class M12Servlet extends HttpServlet {
                 @Override public Boolean isCurrent() { return true; }
                 @Override public void close() { }
             };
-            this.faultStore = new M12FaultStore(InMemoryWebAuthnStore.fromLimits(128, 2_000_000));
+            this.faultStore = new M12FaultStore(InMemoryWebAuthnStore.fromLimits(128, 2_000_000L));
             this.relyingParty = WebAuthnRelyingParty.withRelyingPartyId(M12Authenticator.RP)
                     .relyingPartyName("M12 Qualification").allowedOrigins(Set.of(M12Authenticator.ORIGIN))
                     .credentialNamespace("m12").store(this.faultStore)

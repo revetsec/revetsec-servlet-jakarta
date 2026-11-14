@@ -143,7 +143,7 @@ def main():
                 # The unpublished normal store JAR has manifest Class-Path entries. Supply exact
                 # links for javac only; runtime WAR has only the five explicitly selected JARs.
                 compile_inputs=instance/"compile-inputs";compile_inputs.mkdir();compile_store=compile_inputs/"store.jar";shutil.copyfile(args.store_jar,compile_store);links=compile_inputs/"lib";links.mkdir()
-                for name,p in [("revetsec-1.0.0-SNAPSHOT.jar",args.core_jar),("pyranid-4.7.0.jar",args.pyranid_jar),("postgresql-42.7.14.jar",args.driver_jar),("checker-qual-3.55.1.jar",args.checker_qual_jar)]:shutil.copyfile(p,links/name)
+                for name,p in [("revetsec-1.0.0.jar",args.core_jar),("pyranid-4.7.0.jar",args.pyranid_jar),("postgresql-42.7.14.jar",args.driver_jar),("checker-qual-3.55.1.jar",args.checker_qual_jar)]:shutil.copyfile(p,links/name)
                 classpath=os.pathsep.join(map(str,[args.core_jar,args.adapter_jar,compile_store,args.pyranid_jar,args.driver_jar,home/"lib/servlet-api.jar",*annotations]))
                 command = [str(args.java_home/"bin/javac"), "--release", "17", "-proc:none", "-Xlint:all", "-Werror",
                            "-cp", classpath, "-d", str(classes), *map(str, sources)]

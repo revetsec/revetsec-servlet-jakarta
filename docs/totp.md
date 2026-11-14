@@ -87,7 +87,7 @@ warning-fatal checks. The annotation JARs are build-time only:
 ```shell
 mkdir -p /private/tmp/revetsec-jakarta-totp-recipe
 "$JAVA_HOME/bin/javac" --release 17 -proc:none -Xlint:all -Werror \
-  -cp "../revetsec/target/revetsec-1.0.0-SNAPSHOT.jar:target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar:$HOME/.m2/repository/jakarta/servlet/jakarta.servlet-api/6.1.0/jakarta.servlet-api-6.1.0.jar:$HOME/.m2/repository/org/jspecify/jspecify/1.0.1/jspecify-1.0.1.jar:$HOME/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar" \
+  -cp "../revetsec/target/revetsec-1.0.0.jar:target/revetsec-servlet-jakarta-1.0.0.jar:$HOME/.m2/repository/jakarta/servlet/jakarta.servlet-api/6.1.0/jakarta.servlet-api-6.1.0.jar:$HOME/.m2/repository/org/jspecify/jspecify/1.0.1/jspecify-1.0.1.jar:$HOME/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar" \
   -d /private/tmp/revetsec-jakarta-totp-recipe docs/ServletTotpRecipe.java
 ```
 
@@ -110,8 +110,8 @@ one-host test recipe.
 ```shell
 python3 verification/totp-container/run.py \
   --tomcat-archive /private/tmp/apache-tomcat-11.0.27.tar.gz \
-  --core-jar ../revetsec/target/revetsec-1.0.0-SNAPSHOT.jar \
-  --adapter-jar target/revetsec-servlet-jakarta-1.0.0-SNAPSHOT.jar \
+  --core-jar ../revetsec/target/revetsec-1.0.0.jar \
+  --adapter-jar target/revetsec-servlet-jakarta-1.0.0.jar \
   --java-home "$JAVA_HOME" \
   --output /private/tmp/revetsec-totp-jakarta-evidence
 ```
