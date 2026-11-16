@@ -18,7 +18,7 @@ env:
   # ==================================================================================================
   # Pushed core baseline used by all adapter workflows. Move the full SHA explicitly for later core changes.
   # ==================================================================================================
-  REVETSEC_CORE_SHA: '31bace2b07ae03d06ff0c099ca2380b87fbd82fa'
+  REVETSEC_CORE_SHA: 'f15ad51553b403d91f268c2f13626658e2e7f835'
 
 permissions:
   contents: read

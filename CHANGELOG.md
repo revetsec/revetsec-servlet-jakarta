@@ -4,7 +4,7 @@ All notable changes to revetsec-servlet-jakarta are recorded in this file.
 
 Each release gets a `## X.Y.Z (YYYY-MM-DD)` heading with Added, Changed, Fixed, Security and Migration Notes sections as needed. A security fix names its GHSA or CVE ID. Each release also states the minimum Revetsec core version and the Servlet API version it requires.
 
-## 1.0.0 (2026-11-15)
+## 1.0.0 (2026-11-16)
 
 First release. Requires Revetsec core 1.0.0, Jakarta Servlet API 6.1.0 and Java 17 or newer.
 
