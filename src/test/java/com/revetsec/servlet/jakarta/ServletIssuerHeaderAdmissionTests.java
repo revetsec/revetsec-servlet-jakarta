@@ -177,6 +177,7 @@ final class ServletIssuerHeaderAdmissionTests {
         private final @NonNull Shape shape; private final int count;
         private int namesRead, headerLookups, valuesRead, bodyRead; private boolean closed;
         private Probe(@NonNull Shape shape, int count) { this.shape = shape; this.count = count; }
+        @SuppressWarnings("JdkObsolete") // The Servlet API exposes request headers as Enumeration.
         private @NonNull Enumeration<@NonNull String> names() {
             return new Enumeration<>() {
                 private int cursor;
@@ -189,12 +190,13 @@ final class ServletIssuerHeaderAdmissionTests {
                 }
             };
         }
+        @SuppressWarnings("JdkObsolete") // The Servlet API exposes request headers as Enumeration.
         private @NonNull Enumeration<@NonNull String> values(@NonNull String name) {
             this.headerLookups++;
             List<String> entries = name.equalsIgnoreCase("Content-Type") ? (this.shape == Shape.DUPLICATE_TYPE ? List.of("application/x-www-form-urlencoded", "application/x-www-form-urlencoded") : List.of("application/x-www-form-urlencoded")) : this.shape == Shape.DISTINCT ? List.of("v") : List.of();
             return new Enumeration<>() {
                 private int cursor;
-                @Override public boolean hasMoreElements() { return shape == Shape.VALUE_OVERFLOW && name.equals("X") || this.cursor < entries.size(); }
+                @Override public boolean hasMoreElements() { return (shape == Shape.VALUE_OVERFLOW && name.equals("X")) || this.cursor < entries.size(); }
                 @Override public @NonNull String nextElement() {
                     if (++valuesRead > 65) throw new AssertionError("Read past the occurrence cutoff");
                     return shape == Shape.VALUE_OVERFLOW && name.equals("X") ? "v" : entries.get(this.cursor++);

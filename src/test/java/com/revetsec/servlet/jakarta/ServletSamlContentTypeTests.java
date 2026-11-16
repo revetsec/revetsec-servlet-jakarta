@@ -42,6 +42,7 @@ final class ServletSamlContentTypeTests {
     private enum Tail { FINITE_MILLION, ENDLESS, NO_FURTHER_PROBES }
     private record Profile(boolean logout, @NonNull String field, SamlPostBindingMessage.@NonNull Kind kind) { }
 
+    @SuppressWarnings("JdkObsolete") // The Servlet API exposes request headers as Enumeration.
     @TestFactory @NonNull Stream<@NonNull DynamicTest> duplicateHeadersStopBeforeAnyThirdValueOrProbe() {
         return Stream.of(false, true).flatMap(logout -> Arrays.stream(Tail.values()).map(tail ->
                 DynamicTest.dynamicTest("logout="+logout+" / "+tail, () -> {

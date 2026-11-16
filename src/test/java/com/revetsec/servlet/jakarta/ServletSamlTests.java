@@ -216,6 +216,7 @@ final class ServletSamlTests {
                 "action=\"https://idp.example.test/sso\""));
     }
 
+    @SuppressWarnings("InputStreamSlowMultibyteRead") // The test request body is intentionally a one-byte stream adapter.
     private static @NonNull HttpServletRequest request(@NonNull String method, @Nullable String query,
             @NonNull List<@NonNull String> contentTypes, byte @NonNull [] body) {
         ByteArrayInputStream input = new ByteArrayInputStream(body);

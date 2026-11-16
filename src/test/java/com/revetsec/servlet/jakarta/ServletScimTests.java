@@ -118,6 +118,7 @@ final class ServletScimTests {
         assertFalse(Thread.currentThread().isInterrupted());
     }
 
+    @SuppressWarnings("InputStreamSlowMultibyteRead") // A one-byte read is required to inject cancellation at the read boundary.
     @Test void cancellationDuringAReadNeverReleasesAPartialOrCompleteBody() {
         ServletInputStream cancelled = new ServletInputStream() {
             @Override public int read() { Thread.currentThread().interrupt(); return -1; }
@@ -131,6 +132,7 @@ final class ServletScimTests {
         } finally { Thread.interrupted(); }
     }
 
+    @SuppressWarnings("JdkObsolete") // The Servlet API exposes request headers as Enumeration.
     @Test void contentTypeEnumerationIsLazyBoundedAndKeepsDuplicatePhysicalOccurrences() {
         AtomicInteger reads = new AtomicInteger();
         HttpServletRequest hostile = headers("Content-Type", new Enumeration<>() {
@@ -150,6 +152,7 @@ final class ServletScimTests {
         assertTrue(ServletScim.contentTypeHeaderValuesFor(absent).isEmpty());
     }
 
+    @SuppressWarnings("JdkObsolete") // The Servlet API exposes request headers as Enumeration.
     @Test void conditionalsKeepAllOccurrencesAndDoNotJoinWildcardWithATag() {
         ScimResource current = resource(); ScimServiceProvider provider = provider();
         assertInstanceOf(ScimIfMatchResult.Satisfied.class, ServletScim.ifMatchResultFor(provider, current,
@@ -248,6 +251,7 @@ final class ServletScimTests {
                 .put("id", "u").put("userName", "old")
                 .put("meta", JsonObject.builder().put("version", "\"v\"").build()).build()).build();
     }
+    @SuppressWarnings("InputStreamSlowMultibyteRead") // Deliberately models bounded reads and failures one byte at a time.
     private static final class CountingStream extends ServletInputStream {
         private final int length;
         private final @Nullable IOException failure;

@@ -64,7 +64,7 @@ operations or reconstruct a withheld login through a later read.
    same-origin form `POST /oidc/session` with exactly `begin=1` passes admission
    before allocating a random anonymous session and CSRF value.
 2. The browser explicitly POSTs its `csrf` value to `/oidc/login/query` or
-   `/oidc/login/form-post`. Exact Origin, one session cookie, one form media
+   `/oidc/login/form-post`. An allowed `BrowserRequestOriginPolicy` result, one session cookie, one form media
    value and an exact bounded form are required. Only one pending attempt may
    belong to that current anonymous session. The host reserves its bounded state,
    calls `OidcClient.beginAuthentication`, and saves the opaque browser-bound
@@ -86,7 +86,7 @@ operations or reconstruct a withheld login through a later read.
    atomically, emits a fresh application session plus pending-cookie deletion as
    separate fields, and redirects only to the fixed local `/oidc/session` URI.
    The old ID and replayed callback cannot authorize access.
-6. `POST /oidc/logout` requires the exact local Origin and session CSRF. It ends the
+6. `POST /oidc/logout` requires an allowed browser request-origin result and session CSRF. It ends the
    local session and pending admission. An already running token/key/account or
    resource-authorization callback cannot publish a replacement/session/action
    after logout. This is local application logout; RP-Initiated Logout remains a
@@ -94,7 +94,9 @@ operations or reconstruct a withheld login through a later read.
 
 Anonymous and pending cookies are host-only Secure/HttpOnly/SameSite=None to allow
 cross-site form-post delivery. Authenticated session cookies use SameSite=Lax.
-All state-changing local routes still require Origin and CSRF. A real browser
+All state-changing local routes still require browser request-origin admission and CSRF. Same-origin or
+user-initiated fetch metadata permits an absent/opaque Origin (including the `no-referrer` case); contradictory
+concrete origins reject, and other fetch contexts require the exact configured Origin. A real browser
 must permit this cookie profile; blocked or missing cookies deny login. There is
 no permissive CORS configuration or provider token exposed as an application API
 bearer. Errors and success responses are private/no-store/no-referrer. Do not log

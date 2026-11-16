@@ -91,6 +91,7 @@ final class ServletJwksTests {
 	}
 
 	@Test
+	@SuppressWarnings("JdkObsolete") // The Servlet API exposes request headers as Enumeration.
 	void conditionalHeaderCombinationBoundsBothCharactersAndEnumeration() throws Exception {
 		JwksPublisher publisher = publisher();
 		for (List<String> values : List.of(List.of("private-input".repeat(1_000)),

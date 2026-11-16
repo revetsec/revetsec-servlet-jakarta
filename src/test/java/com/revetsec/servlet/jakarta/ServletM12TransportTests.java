@@ -243,6 +243,7 @@ final class ServletM12TransportTests {
                 });
     }
 
+    @SuppressWarnings("InputStreamSlowMultibyteRead") // Deliberately models one-byte ServletInputStream reads.
     private static @NonNull ServletInputStream stream(byte @NonNull [] bytes) {
         return new CountingStream(bytes.length, null) {
             @Override public int read() throws IOException {
@@ -253,6 +254,7 @@ final class ServletM12TransportTests {
         };
     }
 
+    @SuppressWarnings("InputStreamSlowMultibyteRead") // Deliberately models bounded reads and failures one byte at a time.
     private static class CountingStream extends ServletInputStream {
         private final int length;
         private final @Nullable IOException failure;

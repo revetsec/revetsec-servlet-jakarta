@@ -20,6 +20,11 @@ The helpers are static classes:
 - `ServletSaml`: bounded original-body, Content-Type and raw-query SAML parsing, plus exact HTTPS redirect and prepared authentication/logout POST-form responses
 - `ServletScim`: a SCIM request's query, body and precondition headers, and the response for a SCIM result
 - `ServletWebAuthn` and `ServletWebAuthnBodyResult`: bounded original JSON ceremony bodies and prepared browser request output
+- `ServletBrowserRequestOrigins`: method plus all exposed `Sec-Fetch-Site`/`Origin` occurrences for core's browser request-origin policy
+
+`ServletBrowserRequestOrigins.browserRequestOriginResultFor(policy, request)` installs no filter and changes no
+state. Use it on browser-facing mutation routes alongside trusted host routing, current session/action or synchronizer
+tokens, and application authorization. The core policy is request-origin admission, not a complete CSRF defense.
 
 ### Installation
 

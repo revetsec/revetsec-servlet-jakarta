@@ -14,7 +14,10 @@
 package example;
 
 import com.revetsec.OperationBinding;
+import com.revetsec.BrowserRequestOriginPolicy;
+import com.revetsec.BrowserRequestOriginResult;
 import com.revetsec.json.JsonObject;
+import com.revetsec.servlet.jakarta.ServletBrowserRequestOrigins;
 import com.revetsec.servlet.jakarta.ServletWebAuthn;
 import com.revetsec.servlet.jakarta.ServletWebAuthnBodyResult;
 import com.revetsec.webauthn.*;
@@ -44,7 +47,8 @@ public final class ServletPasskeyActionsRecipe extends HttpServlet {
     private static final long serialVersionUID=1L;
     static final @NonNull String COOKIE="__Host-passkey-actions";
     static final int MAXIMUM_BODY=65_536;
-    private final @NonNull String origin,authority,rpId,namespace,operatorAccessKey;
+    private final @NonNull String authority,rpId,namespace,operatorAccessKey;
+    private final @NonNull BrowserRequestOriginPolicy browserOriginPolicy;
     private final byte @NonNull [] account;
     private final @NonNull WebAuthnRelyingParty relyingParty;
     private final @NonNull WebAuthnRecoveryGate gate;
@@ -63,7 +67,7 @@ public final class ServletPasskeyActionsRecipe extends HttpServlet {
         URI parsed=URI.create(origin);
         if(!"https".equals(parsed.getScheme())||!rpId.equals(parsed.getHost())||parsed.getRawUserInfo()!=null||parsed.getRawQuery()!=null||parsed.getRawFragment()!=null||!parsed.getRawPath().isEmpty()||parsed.getPort()==0||parsed.getPort()>65535||!operatorAccessKey.matches("[A-Za-z0-9_-]{43}"))throw new IllegalArgumentException("Fixed HTTPS origin, RP and independent operator key required");
         byte[] selectedAccount=approvedAccount.clone();Objects.requireNonNull(WebAuthnStoreKey.forAccountFence(expectedNamespace,rpId,selectedAccount));
-        this.origin=origin;this.authority=parsed.getRawAuthority();this.rpId=rpId;this.namespace=expectedNamespace;this.operatorAccessKey=operatorAccessKey;this.account=selectedAccount;this.relyingParty=Objects.requireNonNull(relyingParty);this.gate=Objects.requireNonNull(gate);this.sessions=new Sessions(clock,selectedAccount,expectedNamespace,rpId);
+        this.browserOriginPolicy=BrowserRequestOriginPolicy.withAllowedOrigins(Set.of(parsed)).build();this.authority=parsed.getRawAuthority();this.rpId=rpId;this.namespace=expectedNamespace;this.operatorAccessKey=operatorAccessKey;this.account=selectedAccount;this.relyingParty=Objects.requireNonNull(relyingParty);this.gate=Objects.requireNonNull(gate);this.sessions=new Sessions(clock,selectedAccount,expectedNamespace,rpId);
     }
 
     @Override protected void service(@NonNull HttpServletRequest original,@NonNull HttpServletResponse response)throws IOException {
@@ -71,7 +75,7 @@ public final class ServletPasskeyActionsRecipe extends HttpServlet {
         try{
             Map<String,List<String>> headers=headers(original);String path=original.getPathInfo();
             if(path==null||!original.getRequestURI().equals(original.getContextPath()+original.getServletPath()+path)||original.getQueryString()!=null||!original.isSecure()||!original.getScheme().equals("https")||!one(headers,"host").equals(this.authority)||headers.containsKey("authorization")||headers.containsKey("content-encoding")||headers.keySet().stream().anyMatch(n->n.equals("forwarded")||n.startsWith("x-forwarded-")))throw new Denied(400);
-            for(String name:List.of("host","origin","cookie","content-type","content-length","transfer-encoding","x-csrf-token","x-ceremony-id","x-credential-id","x-demo-access-key"))if(headers.containsKey(name)&&Objects.requireNonNull(headers.get(name)).size()!=1)throw new Denied(400);
+            for(String name:List.of("host","origin","sec-fetch-site","cookie","content-type","content-length","transfer-encoding","x-csrf-token","x-ceremony-id","x-credential-id","x-demo-access-key"))if(headers.containsKey(name)&&Objects.requireNonNull(headers.get(name)).size()!=1)throw new Denied(400);
             if(headers.containsKey("content-length")&&headers.containsKey("transfer-encoding"))throw new Denied(400);
             if(!this.admissionOpen.get())throw new Denied(503);
             if(!this.work.tryAcquire())throw new Denied(503);acquired=true;
@@ -99,7 +103,7 @@ public final class ServletPasskeyActionsRecipe extends HttpServlet {
             Session session=find(headers);return json(200,JsonObject.builder().put("authenticated",session!=null&&session.authenticated).build());
         }
         if(!request.getMethod().equals("POST"))throw new Denied(405);
-        if(!one(headers,"origin").equals(this.origin))throw new Denied(403);
+        if(!(ServletBrowserRequestOrigins.browserRequestOriginResultFor(this.browserOriginPolicy,request) instanceof BrowserRequestOriginResult.Allowed))throw new Denied(403);
         if(path.equals("/session")){
             empty(request);if(headers.containsKey("cookie"))throw new Denied(400);Session fresh=this.sessions.begin();return session(fresh);
         }
@@ -133,7 +137,7 @@ public final class ServletPasskeyActionsRecipe extends HttpServlet {
         }
         if(path.equals("/register/finish")){
             if(!management(headers))throw new Denied(403);byte[] body=credentialBody(request);WebAuthnRegistrationResult result=this.relyingParty.completeRegistrationResult(ceremony(headers),body,session.binding);check(deadline);if(!this.sessions.current(session))throw new Denied(403);
-            if(result instanceof WebAuthnRegistrationResult.Succeeded success){byte[] handle=success.getRegistration().getUserHandle();try{if(!MessageDigest.isEqual(this.account,handle))throw new Denied(403);}finally{Arrays.fill(handle,(byte)0);}return owned(text(200,"Passkey registered."),session);}
+            if(result instanceof WebAuthnRegistrationResult.Succeeded success){WebAuthnRegistration registration=success.getRegistration();byte[] handle=registration.getUserHandle();try{if(!MessageDigest.isEqual(this.account,handle)||!this.namespace.equals(registration.getCredentialNamespace())||!this.rpId.equals(registration.getRelyingPartyId()))throw new Denied(403);}finally{Arrays.fill(handle,(byte)0);}return owned(registration(registration),session);}
             if(result instanceof WebAuthnRegistrationResult.ReconciliationRequired||result instanceof WebAuthnRegistrationResult.Indeterminate)return unavailableAndClose();
             if(result instanceof WebAuthnRegistrationResult.Rejected)throw new Denied(400);throw new Denied(503);
         }
@@ -185,6 +189,8 @@ public final class ServletPasskeyActionsRecipe extends HttpServlet {
         if(result instanceof WebAuthnCredentialRemovalResult.ReconciliationRequired||result instanceof WebAuthnCredentialRemovalResult.Indeterminate)return unavailableAndClose();
         if(result instanceof WebAuthnCredentialRemovalResult.Absent)throw new Denied(404);throw new Denied(503);
     }
+    /** Persist this display-only response in the application's credential row; never authorize from AAGUID. */
+    private static @NonNull Output registration(@NonNull WebAuthnRegistration registration){byte[] id=registration.getCredentialId();try{JsonObject.Builder value=JsonObject.builder().put("message","Passkey registered.").put("credentialId",encode(id)).put("backupEligible",registration.isBackupEligible()).put("backedUp",registration.isBackedUp()).put("userVerifiedAtRegistration",registration.isUserVerifiedAtRegistration());registration.getAaguid().ifPresentOrElse(aaguid->value.put("aaguid",aaguid.toString()),()->value.putNull("aaguid"));return json(200,value.build());}finally{Arrays.fill(id,(byte)0);}}
     private @NonNull Output unavailableAndClose(){this.admissionOpen.set(false);return text(503,"Local application unavailable; reconcile before further operations.");}
     private boolean current(WebAuthnRecoveryGate.@NonNull Permit permit){try{return this.admissionOpen.get()&&Boolean.TRUE.equals(permit.isCurrent());}catch(RuntimeException unavailable){return false;}}
     private boolean management(@NonNull Map<@NonNull String,@NonNull List<@NonNull String>> headers){String key=optional(headers,"x-demo-access-key");return key!=null&&equal(this.operatorAccessKey,key);}

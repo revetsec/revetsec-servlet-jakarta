@@ -441,8 +441,9 @@ public final class ServletTotpRecipe extends HttpServlet {
     }
 
     /**
-     * App-owned admission and persistence. Admission rejects non-exact Host/Origin, missing or
-     * duplicate cookie/CSRF/media headers, non-ASCII or oversized raw bodies, and duplicate input.
+     * App-owned admission and persistence. Browser mutations use ServletBrowserRequestOrigins
+     * with a fixed BrowserRequestOriginPolicy after exact Host routing. Admission also rejects
+     * duplicate cookie/origin/fetch-site/CSRF/media headers, non-ASCII or oversized raw bodies, and duplicate input.
      * It resolves account IDs and bindings from server-owned state, never caller-supplied fields.
      * Both login admissions require a short-lived, primary-authenticated pending session. Their
      * completion atomically rechecks and consumes that pending state, pins the factor ID and epoch,

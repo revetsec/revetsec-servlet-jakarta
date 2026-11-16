@@ -91,6 +91,7 @@ final class ServletOAuthCallbackMethodTests {
         assertThrows(NullPointerException.class, () -> ServletOAuth.authorizationResponseResultFor(null));
     }
 
+    @SuppressWarnings("InputStreamSlowMultibyteRead") // The test request body is intentionally a one-byte stream adapter.
     private static @NonNull HttpServletRequest request(@NonNull String method, @Nullable String query,
             @Nullable String body, @NonNull List<@NonNull String> types) {
         return (HttpServletRequest) Proxy.newProxyInstance(HttpServletRequest.class.getClassLoader(),

@@ -16,6 +16,8 @@
 package example;
 
 import com.revetsec.BrowserBinding;
+import com.revetsec.BrowserRequestOriginPolicy;
+import com.revetsec.BrowserRequestOriginResult;
 import com.revetsec.jose.JwsAlgorithm;
 import com.revetsec.jose.RemoteJwksSource;
 import com.revetsec.json.JsonObject;
@@ -34,6 +36,7 @@ import com.revetsec.oidc.OidcClient;
 import com.revetsec.oidc.OidcProviderMetadata;
 import com.revetsec.servlet.jakarta.ServletOAuth;
 import com.revetsec.servlet.jakarta.ServletOAuthCallbackResult;
+import com.revetsec.servlet.jakarta.ServletBrowserRequestOrigins;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -98,6 +101,7 @@ public final class ServletOidcRpRecipe extends HttpServlet {
     }
     @FunctionalInterface public interface Admission{boolean allow(@NonNull String trustedPeer,@NonNull Duration remaining)throws Exception;}
     private final @NonNull Configuration config;
+    private final @NonNull BrowserRequestOriginPolicy browserOriginPolicy;
     private final @NonNull OidcClient client;
     private final @NonNull PendingAuthorizationStore pending;
     private final @NonNull Accounts accounts;
@@ -128,7 +132,7 @@ public final class ServletOidcRpRecipe extends HttpServlet {
     }
     ServletOidcRpRecipe(@NonNull Configuration config,@NonNull OidcClient client,@NonNull PendingAuthorizationStore pending,
             @NonNull Accounts accounts,@NonNull Admission admission,@NonNull Clock clock,@NonNull LongSupplier nanoTime){
-        this.config=Objects.requireNonNull(config);this.client=Objects.requireNonNull(client);this.pending=Objects.requireNonNull(pending);
+        this.config=Objects.requireNonNull(config);this.browserOriginPolicy=BrowserRequestOriginPolicy.withAllowedOrigins(Set.of(config.origin())).build();this.client=Objects.requireNonNull(client);this.pending=Objects.requireNonNull(pending);
         this.accounts=Objects.requireNonNull(accounts);this.admission=Objects.requireNonNull(admission);this.clock=Objects.requireNonNull(clock);this.nanoTime=Objects.requireNonNull(nanoTime);
     }
     @Override protected void service(@NonNull HttpServletRequest request,@NonNull HttpServletResponse response)throws IOException{
@@ -212,7 +216,7 @@ public final class ServletOidcRpRecipe extends HttpServlet {
                 }finally{this.work.release();}
             }
             if(!request.getMethod().equals("POST"))throw new Denied(405);
-            if(!headers.getOrDefault("origin",List.of()).equals(List.of(this.config.origin().toString())))throw new Denied(403);
+            if(!(ServletBrowserRequestOrigins.browserRequestOriginResultFor(this.browserOriginPolicy,request) instanceof BrowserRequestOriginResult.Allowed))throw new Denied(403);
             String type=one(headers,"content-type");
             if(!type.equalsIgnoreCase("application/x-www-form-urlencoded"))throw new Denied(415);
             if(request.getContentLengthLong()>128)throw new Denied(413);

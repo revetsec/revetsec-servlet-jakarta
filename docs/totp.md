@@ -36,8 +36,9 @@ inside its own authoritative completion transaction. A mere preflight epoch
 lookup does not close the proof-to-session race.
 
 Implement each `ApplicationSecurity.admit*` method to authenticate the caller,
-resolve account identity from server-owned state, enforce exact Host and Origin,
-reject missing or duplicate visible Cookie, Origin, CSRF and Content-Type
+resolve account identity from server-owned state, enforce exact Host, and call
+`ServletBrowserRequestOrigins.browserRequestOriginResultFor` for browser mutation routes.
+Reject duplicate visible Cookie, Origin, Sec-Fetch-Site, CSRF and Content-Type
 headers, and perform bounded body admission before calling core. For the three
 code submissions, require `text/plain` with a short ASCII body read from
 `getInputStream()` at a fixed cap plus one byte. Never use `getParameter*` or
