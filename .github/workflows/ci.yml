@@ -18,7 +18,7 @@ env:
   # ==================================================================================================
   # Pushed core baseline used by all adapter workflows. Move the full SHA explicitly for later core changes.
   # ==================================================================================================
-  REVETSEC_CORE_SHA: 'bbbefdbab8e80d0349f01a7b2b3c8525d248625e'
+  REVETSEC_CORE_SHA: '31bace2b07ae03d06ff0c099ca2380b87fbd82fa'
 
 permissions:
   contents: read
@@ -360,11 +360,11 @@ jobs:
       - name: Compile paired M12 cookbook sources
         run: |
           # Maven still resolves this example's unpublished test-only siblings with maven.test.skip.
-          # Compile its main sources with the same pinned dependency instead.
+          # Compile its main sources with the same released dependency instead.
           mvn -B -ntp -f adapter/pom.xml org.apache.maven.plugins:maven-dependency-plugin:3.11.0:get \
-            -Dartifact=com.pyranid:pyranid:4.7.0 -Dtransitive=false
+            -Dartifact=com.pyranid:pyranid:4.9.0 -Dtransitive=false
           servlet_api_jar="$HOME/.m2/repository/jakarta/servlet/jakarta.servlet-api/6.1.0/jakarta.servlet-api-6.1.0.jar"
-          pyranid_jar="$HOME/.m2/repository/com/pyranid/pyranid/4.7.0/pyranid-4.7.0.jar"
+          pyranid_jar="$HOME/.m2/repository/com/pyranid/pyranid/4.9.0/pyranid-4.9.0.jar"
           jspecify_jar="$HOME/.m2/repository/org/jspecify/jspecify/1.0.1/jspecify-1.0.1.jar"
           jsr305_jar="$HOME/.m2/repository/com/google/code/findbugs/jsr305/3.0.2/jsr305-3.0.2.jar"
           test -f "$servlet_api_jar"

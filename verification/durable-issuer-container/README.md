@@ -10,7 +10,7 @@ python3 -B verification/durable-issuer-container/run.py \
   --core-jar /absolute/core.jar --core-sha256 EXACT_CORE_SHA256 \
   --adapter-jar /absolute/adapter.jar --adapter-sha256 EXACT_ADAPTER_SHA256 \
   --store-jar /absolute/reference-stores.jar --store-sha256 EXACT_STORE_SHA256 \
-  --pyranid-jar /absolute/pyranid-4.7.0.jar --pyranid-sha256 EXACT_PYRANID_SHA256 \
+  --pyranid-jar /absolute/pyranid-4.9.0.jar --pyranid-sha256 EXACT_PYRANID_SHA256 \
   --driver-jar /absolute/postgresql-42.7.14.jar --driver-sha256 EXACT_DRIVER_SHA256 \
   --checker-qual-jar /absolute/checker-qual-3.55.1.jar \
   --java-home /absolute/jdk21 --annotations-repository /absolute/maven-repository \
