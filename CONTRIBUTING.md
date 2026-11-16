@@ -24,11 +24,15 @@ $ mvn -B -ntp -Dmaven.javadoc.skip=true verify
 
 The build compiles, runs every test (including the contract tests) and packages the JAR. Use `install` instead of `verify` to put `1.0.0` into your local Maven repository.
 
-The routine CI verification commands pass `-Dmaven.javadoc.skip=true`. A dedicated gate runs Maven on Java 17 and Javadoc on checksum-pinned Corretto 26, with warnings fatal. To run it locally after installing core, point `REVETSEC_JAVADOC_HOME` at a JDK 26 and leave the skip flag off:
+The routine CI verification commands pass `-Dmaven.javadoc.skip=true`. A dedicated gate runs Maven on Java 17 and Javadoc on checksum-pinned Corretto 26, with warnings fatal. Core types link to `https://javadoc.revetsec.com/` through core's locally generated index, so install core with its Javadoc first, then pass that index to the adapter:
 
 ```shell
-$ REVETSEC_JAVADOC_HOME=/absolute/path/to/jdk-26 mvn -B -ntp -DskipTests -Dmaven.javadoc.failOnWarnings=true verify
+$ export REVETSEC_JAVADOC_HOME=/absolute/path/to/jdk-26
+$ mvn -B -ntp -f ../revetsec/pom.xml -DskipTests -Dmaven.javadoc.failOnWarnings=true install
+$ mvn -B -ntp -DskipTests -Dmaven.javadoc.failOnWarnings=true -Drevetsec.core.javadoc.location=/absolute/path/to/revetsec/target/reports/apidocs verify
 ```
+
+The location defaults to the sibling checkout's `../revetsec/target/reports/apidocs`. The release workflow uses the released core Javadoc JAR from Maven Central instead.
 
 #### Gate Commands
 
@@ -38,11 +42,11 @@ CI runs these checks on every pull request. Run the ones your change affects bef
 | --- | --- | --- |
 | Build and tests | 17, 21, 25, 27 | `mvn -B -ntp -Dmaven.javadoc.skip=true verify` |
 | Error Prone, NullAway and SpotBugs | 21 | `mvn -B -ntp -Dmaven.javadoc.skip=true -Pstatic-analysis,spotbugs verify` |
-| Warnings-fatal Javadoc | Maven 17 / Javadoc 26 | `REVETSEC_JAVADOC_HOME=/absolute/path/to/jdk-26 mvn -B -ntp -DskipTests -Dmaven.javadoc.failOnWarnings=true verify` |
+| Warnings-fatal Javadoc | Maven 17 / Javadoc 26 | `REVETSEC_JAVADOC_HOME=/absolute/path/to/jdk-26 mvn -B -ntp -DskipTests -Dmaven.javadoc.failOnWarnings=true verify` with the local core index |
 | Drift from core | none | `python3 scripts/verify-core-drift.py --core-directory ../revetsec` |
 | Drift-check self-tests | none | `python3 -m unittest discover -s scripts -p 'test_*.py'` |
 
-The [workflow guide](docs/workflows.md#build-and-compile-the-paired-source) gives the paired source compile commands, the concrete PostgreSQL reference-store wiring and the pinned M12 Tomcat runner. CI compiles both cookbook sources in its M12 container job. The [SAML](docs/saml.md#real-container-qualification) and [SCIM](docs/scim.md#real-container-qualification) guides give their own container commands. Run affected real-container checks after building core and this adapter; unit fakes alone do not establish container body, header or cookie behavior.
+The [workflow guide](docs/workflows.md#build-and-compile-the-paired-source) gives the paired source compile commands, the concrete PostgreSQL reference-store wiring and the pinned Tomcat workflow runner. CI compiles both cookbook sources in its `m12-container` job. The [SAML](docs/saml.md#real-container-qualification) and [SCIM](docs/scim.md#real-container-qualification) guides give their own container commands. Run affected real-container checks after building core and this adapter; unit fakes alone do not establish container body, header or cookie behavior.
 
 The build's contract tests enforce the conventions in [NAMING_CONVENTIONS.md](NAMING_CONVENTIONS.md), the adapter's single package and its use of core's public API only, a list of banned source constructs, and the wording of the documentation. `ClaimsLintTests` rejects unsupported claims in any Markdown file. If it flags wording you wrote, rephrase it. An entry in `claims-allowlist.txt` is for wording that has evidence behind it, and each entry states that evidence.
 

@@ -4,6 +4,8 @@ Revetsec helpers for applications on the `jakarta.servlet` API.
 
 Version 1.0.0 is this adapter's first compatibility release. OAuth client, bearer, issuer, SAML, SCIM and WebAuthn transport helpers are implemented.
 
+See the [Javadoc](https://jakarta.javadoc.revetsec.com) for the API reference.
+
 ### What Is It?
 
 [Revetsec](https://github.com/revetsec/revetsec) is a zero-dependency Java library for OAuth 2.0 clients and resource servers, OpenID Connect relying parties, JOSE, SAML 2.0 service providers (SPs) and SCIM 2.0 servers. Its core has no framework dependency: it parses raw query strings, form bodies and header values.

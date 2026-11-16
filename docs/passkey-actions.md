@@ -22,4 +22,4 @@ A response frame owns only its exact newly-created grant. A final eligibility re
 
 `Indeterminate` or `ReconciliationRequired` closes local application admission. This application has no automatic retry, status/read rescue, reset or reopen endpoint. A trusted operator must reconcile the selected store/controller before replacing this local host. A JVM restart alone is not a recovery protocol. The volatile session/grant state has no durable, fleet or restart-continuity claim.
 
-See `verification/passkey-actions-container/README.md` for actual synthetic signed-credential, carrier, concurrency, fault and private calibration checks. Physical authenticators, owner deployment, real TLS/browser composition, durable store composition, the final merged candidate and package qualification are separate gates.
+See `verification/passkey-actions-container/README.md` for actual synthetic signed-credential, carrier, concurrency, fault and private calibration checks. Physical authenticators, the application's own deployment, real TLS/browser composition, durable store composition and final release-package qualification need separate qualification.

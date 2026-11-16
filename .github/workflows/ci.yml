@@ -18,7 +18,7 @@ env:
   # ==================================================================================================
   # Pushed core baseline used by all adapter workflows. Move the full SHA explicitly for later core changes.
   # ==================================================================================================
-  REVETSEC_CORE_SHA: 'ad71f9aaa545e8e2fb4498b49d5f2fa81ad72b80'
+  REVETSEC_CORE_SHA: '66532561d27fcb95dfab22f3dadda1fc25f785ac'
 
 permissions:
   contents: read
@@ -213,11 +213,12 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: Build pinned core and warnings-fatal adapter Javadoc
+      - name: Build pinned core with its Javadoc index and warnings-fatal adapter Javadoc
         run: |
           rm -rf ~/.m2/repository/com/revetsec
-          mvn -B -ntp -f core/pom.xml -DskipTests -Dmaven.javadoc.skip=true install
-          mvn -B -ntp -f adapter/pom.xml -DskipTests -Dmaven.javadoc.failOnWarnings=true verify
+          mvn -B -ntp -f core/pom.xml -DskipTests -Dmaven.javadoc.failOnWarnings=true install
+          mvn -B -ntp -f adapter/pom.xml -DskipTests -Dmaven.javadoc.failOnWarnings=true \
+            -Drevetsec.core.javadoc.location="$GITHUB_WORKSPACE/core/target/reports/apidocs" verify
 
   # Gating. Error Prone + NullAway and SpotBugs + FindSecBugs need JDK 21; the release target stays 17.
   static-analysis:

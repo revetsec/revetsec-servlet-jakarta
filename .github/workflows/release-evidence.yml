@@ -66,6 +66,7 @@ jobs:
           with pathlib.Path(output_path).open("a", encoding="utf-8") as output:
               print(f"artifact_id={artifact_id}", file=output)
               print(f"version={version}", file=output)
+              print(f"core_version={core_version}", file=output)
           PY
 
       - name: Require a GitHub-verified signed tag
@@ -106,10 +107,41 @@ jobs:
           java-version: '17'
           cache: maven
 
+      - name: Download the released core Javadoc index
+        env:
+          CORE_VERSION: ${{ steps.release.outputs.core_version }}
+        run: |
+          base="https://repo.maven.apache.org/maven2/com/revetsec/revetsec/${CORE_VERSION}"
+          jar="${RUNNER_TEMP}/revetsec-${CORE_VERSION}-javadoc.jar"
+          curl --proto '=https' --tlsv1.2 --fail --location --silent --show-error --retry 3 \
+            "${base}/revetsec-${CORE_VERSION}-javadoc.jar" --output "$jar"
+          curl --proto '=https' --tlsv1.2 --fail --location --silent --show-error --retry 3 \
+            "${base}/revetsec-${CORE_VERSION}-javadoc.jar.sha512" --output "${jar}.sha512"
+          checksum=$(tr -d '[:space:]' < "${jar}.sha512")
+          [[ "$checksum" =~ ^[0-9a-fA-F]{128}$ ]]
+          printf '%s  %s\n' "$checksum" "$jar" | sha512sum --check --strict
+          python3 - "$jar" "${RUNNER_TEMP}/revetsec-core-javadoc" <<'PY'
+          import pathlib
+          import sys
+          import zipfile
+
+          archive = pathlib.Path(sys.argv[1])
+          destination = pathlib.Path(sys.argv[2]).resolve()
+          destination.mkdir()
+          with zipfile.ZipFile(archive) as jar:
+              for member in jar.infolist():
+                  target = (destination / member.filename).resolve()
+                  if not target.is_relative_to(destination):
+                      raise SystemExit(f"unsafe Javadoc JAR member: {member.filename!r}")
+              jar.extractall(destination)
+          PY
+
       - name: Build the unsigned release payloads
         run: >-
           mvn -B -ntp -Prelease -Dgpg.skip=true -Dcentral.skipUpload=true
-          -Dmaven.javadoc.failOnWarnings=true clean verify
+          -Dmaven.javadoc.failOnWarnings=true
+          -Drevetsec.core.javadoc.location="${RUNNER_TEMP}/revetsec-core-javadoc"
+          clean verify
 
       - name: Collect payloads and checksums
         env:

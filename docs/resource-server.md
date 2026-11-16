@@ -1,7 +1,7 @@
-# Bearer resources, introspection and service-token reads (S2)
+# Bearer resources, introspection and service-token reads
 
 [ServletResourceServerRecipe.java](ServletResourceServerRecipe.java) is an
-unpublished application host for the selected S2 resource/acquisition scenario.
+unpublished application host for bearer resources and service-token acquisition.
 Its two named production factories select a **fixed startup** JWT or introspection
 profile. The handler never guesses from token shape, falls back to introspection
 after JWT failure, or forwards an incoming credential to the downstream service.
@@ -134,7 +134,7 @@ Require canonical fixed routes, one bounded bearer source and no ambient Cookie
 or query credentials. A present Origin must be the exact configured origin; no
 permissive CORS policy is added. GET bodies are refused, including chunked input.
 Proxy-read requires one form media field, exactly `read=1`, and a complete body of
-at most 128 bytes (the rejecting read detects byte129). Preserve duplicate headers;
+at most 128 bytes (the rejecting read detects byte 129). Preserve duplicate headers;
 limits are 32 names/occurrences, 16384 ASCII header characters and 8192 per value.
 No `getParameter*`, body-consuming filter or Servlet cookie/session conversion
 runs first. HEAD cannot read a protected resource and emits no response body.
@@ -162,18 +162,17 @@ python3 verification/resource-server-container/calibrate.py \
   --output /private/tmp/revetsec-s2-jakarta-evidence
 ```
 
-`--annotations-repository` selects pinned JSpecify1.0.1, JSR3053.0.2 and Error
-Prone annotations2.50.0. The runner rejects hash mismatches before creating a
-container, compiles Java17 with warnings fatal, audits explicit nullability and
+`--annotations-repository` selects pinned JSpecify 1.0.1, JSR305 3.0.2 and Error
+Prone annotations 2.50.0. The runner rejects hash mismatches before creating a
+container, compiles Java 17 with warnings fatal, audits explicit nullability and
 checks actual core/ServletBearer JAR origins. Exact sources/runtime/artifacts,
 redacted request fingerprints and owned process/instance cleanup appear in receipts.
 The four private host defects remove tenant/object binding, final current-policy
 check, exact expiry or exact rejected-instance invalidation. Only the expected
 named live assertion after a green control counts; setup/timeout failures do not.
 
-The actual new-candidate failing-before expiry regression is preserved separately:
-when lookup advanced time past E, the original handler returned401 but still
-invoked data read. The fixed handler checks again before starting that work.
+An expiry regression check advances time past the credential expiry during
+account lookup; the handler checks expiry again and starts no data read.
 The fixture also checks real Basic form encoding, JWT/opaque isolation, current
 AS inactivity, service-token issuance/use/cache/invalidation, policy/generation
 changes and exact expiry during reads, all work permits and withheld secrets.
@@ -183,10 +182,10 @@ production endpoints. No real service account/customer data or external service
 is used. The fixed loopback secure flag does not perform a real TLS handshake.
 The host has no ambient browser session to rotate; every request uses its explicit
 credential and current authorization. Applicable browser/trusted-edge, durable/
-distributed/current-policy deployment and formal paired S2 tool observations remain
-separate gates. S3/S4 and the final ten-family carrier ledger retain their own work.
+distributed/current-policy deployment and formal security-tool testing need
+separate qualification.
 
 For explicit injected test cancellation only, buffered output is observed before
 clearing the fixture's injected thread interrupt: it must remain set and the
 handler must have withheld data/credential/challenge/cookie/redirect output. This
-does not claim that a production interrupted socket always delivers a503.
+does not claim that a production interrupted socket always delivers a 503.

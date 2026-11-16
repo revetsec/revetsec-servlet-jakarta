@@ -1,6 +1,6 @@
 # Google and Apple ID tokens at a Servlet backend
 
-This application-owned R9/R10 cookbook source composes the shared
+This application-owned cookbook source composes the shared
 [provider-token application recipe](https://github.com/revetsec/revetsec/blob/main/examples/provider-backend-tokens/README.md)
 with a `jakarta.servlet` carrier. The common implementation owns trusted
 provider keys, exact issuers and singleton audiences, Google double-submit CSRF,
@@ -123,11 +123,11 @@ transport; it does **not** perform a real TLS handshake. Its signing/control
 endpoints and loopback opt-in must never be installed in a production application.
 There is no provider client secret, live Google/Apple account or native SDK here.
 
-A successful source-bound receipt covers local R9/R10 application-carrier behavior:
-request/refusal ordering, actual signed-token/JWKS validation, nonce replay/races,
-account/tenant/owner denial, session rotation/logout, oversized/truncated bodies,
-source outage and independent cookie serialization. It does not close hosted GIS
-browser or native Apple account/device evidence, distributed session/recovery
-integration or external edge qualification. The separate S1 full OIDC RP,
-S2 JWT/opaque resource/client-acquisition, S3 SP/browser/mutable-SAML and S4
-restrictive SCIM query/write hosts, and formal paired M12 tool pass remain open.
+A successful run covers local Google/Apple application-carrier behavior for the
+exact sources and artifacts its receipt records: request/refusal ordering, actual
+signed-token/JWKS validation, nonce replay/races, account/tenant/owner denial,
+session rotation/logout, oversized/truncated bodies, source outage and independent
+cookie serialization. It does not cover hosted GIS browser or native Apple
+account/device behavior, distributed session/recovery integration, external edge
+qualification or formal security-tool testing. The separate OIDC RP,
+resource-server, SAML and SCIM application recipes have their own checks.

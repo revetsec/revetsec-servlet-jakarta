@@ -15,7 +15,7 @@ For a production write, use this ordering:
 3. Check `If-Match` against that exact resource. Apply PATCH or the membership reducer, keeping full-evaluation fallback inside the same transaction.
 4. Authorize attempted paths even for a no-op, then effective paths/values and privilege changes. Enforce uniqueness and member-reference integrity.
 5. Calculate the actual change and assign authoritative metadata only when changed. Preserve the existing version for a no-op.
-6. Prepare the bounded final response before commit. A rejected preparation rolls back the candidate.
+6. Prepare the bounded final response before commit. A rejected preparation rolls back the transaction.
 7. Persist resources and membership atomically, distinguish conflicts, outages and unknown commits, and emit only after confirmed commit. Do not automatically replay an unknown commit.
 
 Use the same preparation/persistence boundary for create, PUT and delete. Core's provisioning guide and durable example document host-owned transaction branches. `ServletScim.writeResponse(response, prepared)` preserves status, header values and bytes without JSON marshalling, URL rewriting, flushing or closing streams. Its output `IOException` stays a transport exception. The application suppresses body writes for HEAD and owns any host-level headers. Set an appropriate `WWW-Authenticate` challenge on a host-generated 401 and an `Allow` list for the actual target route on a 405 before calling `writeResponse`; the emitter preserves those fields. The paired example shows the authentication challenge and distinct collection/resource method lists. Bound host-added headers under the transport limits as well.
@@ -26,7 +26,7 @@ Set corresponding trusted-edge and container allocation/time limits. The paired 
 
 [run.py](../verification/scim-container/run.py) compiles the paired example for Java 17, deploys it in a private Tomcat instance bound to `127.0.0.1`, and tests actual User and Group create/GET/PUT/PATCH/delete flows. It also tests Group membership, explicit PATCH projection, no-op versions, late-operation atomic rejection, 304/412, untouched query multiplicity, physical Content-Type duplicates, malformed UTF-8, body overflow and authentication rejection. This is transport and example qualification, not independent-client interoperability or durable database qualification.
 
-[runtime.json](../verification/scim-container/runtime.json) pins Tomcat 11.0.27 under Apache-2.0 with the official SHA-512 archive digest, release and advisory sources checked on 2026-10-13. The runner verifies the digest before extraction, records exact source/JAR/runtime identities and bounded check names, and removes its process and private instance after success or failure. It retains no credentials, bodies or runtime logs. Refresh reviewed pins explicitly; never replace the checksum with a downloaded unchecked value.
+[runtime.json](../verification/scim-container/runtime.json) pins Tomcat 11.0.27 under Apache-2.0 with the official SHA-512 archive digest and the release and advisory sources it was checked against. The runner verifies the digest before extraction, records exact source/JAR/runtime identities and bounded check names, and removes its process and private instance after success or failure. It retains no credentials, bodies or runtime logs. Refresh reviewed pins explicitly; never replace the checksum with a downloaded unchecked value.
 
 Build core and the adapter first, then run with the exact built artifacts:
 

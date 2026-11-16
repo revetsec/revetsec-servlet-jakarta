@@ -296,7 +296,7 @@ class WorkflowTests(unittest.TestCase):
                     self.assertLess(job.index("rm -rf ~/.m2/repository/com/revetsec"), job.index("-f core/pom.xml"))
                     self.assertLess(job.index("-f core/pom.xml"), job.index("-f adapter/pom.xml"))
 
-    def test_core_is_installed_without_tests_or_javadoc(self):
+    def test_core_is_installed_without_tests_and_only_the_javadoc_gate_builds_its_javadoc(self):
         build_jobs = {name: job for name, job in self.jobs().items() if "-f core/pom.xml" in job}
         self.assertEqual({"test", "javadoc", "static-analysis", "scim-container", "m12-container",
                           "saml-container", "totp-container", "jwks-container"},
@@ -306,7 +306,12 @@ class WorkflowTests(unittest.TestCase):
                 installs = re.findall(r"mvn [^\n]*-f core/pom\.xml[^\n]*", job)
                 self.assertEqual(1, len(installs))
                 self.assertIn("-DskipTests", installs[0])
-                self.assertIn("-Dmaven.javadoc.skip=true", installs[0])
+                # The Javadoc gate builds core's documentation index for the adapter's core links.
+                if name == "javadoc":
+                    self.assertIn("-Dmaven.javadoc.failOnWarnings=true", installs[0])
+                    self.assertNotIn("-Dmaven.javadoc.skip=true", installs[0])
+                else:
+                    self.assertIn("-Dmaven.javadoc.skip=true", installs[0])
                 self.assertTrue(installs[0].endswith(" install"), installs[0])
 
     def test_javadoc_gate_uses_the_pinned_toolchain_and_fails_on_warnings(self):
@@ -314,7 +319,9 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn("needs: drift", job)
         self.assertIn("install-pinned-corretto-linux-x64.sh", job)
         self.assertIn('javadocJava "${RUNNER_TEMP}" "${GITHUB_ENV}"', job)
-        self.assertIn("-Dmaven.javadoc.failOnWarnings=true verify", job)
+        self.assertEqual(2, job.count("-Dmaven.javadoc.failOnWarnings=true"))
+        self.assertIn('-Drevetsec.core.javadoc.location="$GITHUB_WORKSPACE/core/target/reports/apidocs" verify',
+                      job)
         self.assertNotIn("continue-on-error", job)
 
     def test_never_overrides_the_declared_core_version(self):

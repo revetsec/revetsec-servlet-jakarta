@@ -88,8 +88,10 @@
 		<junit.jupiter.version>6.1.3</junit.jupiter.version>
 
 		<!-- The public Javadoc JAR uses the separately pinned REVETSEC_JAVADOC_HOME JDK;
-		     Java source compilation still targets 17. Routine local builds may skip Javadoc explicitly. -->
+		     Java source compilation still targets 17. Routine local builds may skip Javadoc explicitly.
+		     Core links use the locally built core index; CI overrides the sibling location. -->
 		<revetsec.javadoc.executable>${env.REVETSEC_JAVADOC_HOME}/bin/javadoc</revetsec.javadoc.executable>
+		<revetsec.core.javadoc.location>${project.basedir}/../revetsec/target/reports/apidocs</revetsec.core.javadoc.location>
 		<revetsec.spotbugs.excludeFilterFile>${project.basedir}/config/spotbugs-exclude.xml</revetsec.spotbugs.excludeFilterFile>
 	</properties>
 
@@ -216,6 +218,10 @@
 					<detectJavaApiLink>false</detectJavaApiLink>
 					<detectOfflineLinks>false</detectOfflineLinks>
 					<offlineLinks>
+						<offlineLink>
+							<url>https://javadoc.revetsec.com/</url>
+							<location>${revetsec.core.javadoc.location}</location>
+						</offlineLink>
 						<offlineLink>
 							<url>https://docs.oracle.com/en/java/javase/26/docs/api/</url>
 							<location>${project.basedir}/src/main/javadoc/links/java-26</location>

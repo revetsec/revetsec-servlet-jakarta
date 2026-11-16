@@ -1,4 +1,4 @@
-# M12 adapter regression calibration
+# Servlet workflow regression calibration
 
 `run.py` executes the positive OAuth, bearer, issuer and WebAuthn workload in the pinned Tomcat runtime. `calibrate.py` additionally requires a compiler control and eight planted adapter defects to be detected. CI uses calibration; standalone positive runs remain available.
 
@@ -21,4 +21,4 @@ Private adapter-only probes are deliberate: later core validation or an applicat
 
 Use the arguments documented in [the workflow guide](../../docs/workflows.md), a new output directory, the exact checksum-pinned archive, JDK 21 and the pinned annotation JARs from the local Maven cache. The selected CI/local profile is POSIX, with loopback-only disposable instances. Run `python3 -m unittest discover -s verification/m12-container -p 'test_*.py'` for classifier/plant/source guards. Python optimization is refused because it removes assertions.
 
-Reports bind sources, compiler control, changed classfiles, core/adapter/runtime hashes and named checks. They retain no request/response credentials, bodies or container logs. Private signing/authentication state, instance directories and mutated JARs are removed. Shared-clock deployment inventory, UTC/witness/restore, real browser/provider qualification and broader M12/release acceptance remain separate.
+Reports bind sources, compiler control, changed classfiles, core/adapter/runtime hashes and named checks. They retain no request/response credentials, bodies or container logs. Private signing/authentication state, instance directories and mutated JARs are removed. This calibration does not cover shared-clock deployment inventory, UTC/witness/restore, real browser/provider qualification or broader release qualification.

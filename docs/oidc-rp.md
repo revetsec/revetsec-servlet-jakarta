@@ -1,7 +1,7 @@
-# Complete OIDC RP application host (S1)
+# Complete OIDC RP application host
 
 [ServletOidcRpRecipe.java](ServletOidcRpRecipe.java) is an unpublished, complete
-single-process application host for the selected S1 login scenario. It uses the
+single-process OpenID Connect relying-party (RP) login host. It uses the
 actual public `OidcClient`, bounded `InMemoryPendingAuthorizationStore` and
 `ServletOAuth` APIs. Query and form-post callbacks establish a fresh application
 session only after the OIDC transaction and current local account policy succeed.
@@ -170,7 +170,7 @@ python3 verification/oidc-rp-container/calibrate.py \
 ```
 
 `--annotations-repository` selects pinned JSpecify 1.0.1, JSR305 3.0.2 and Error
-Prone annotations 2.50.0. A green source-bound control is required before four
+Prone annotations 2.50.0. A green control run is required before four
 private application-host plants: cross-browser admission bypass, current-account
 bypass, skipped final current-session check and ignored caller interruption.
 Only the expected named live-container assertion with successful owned-process/
@@ -195,8 +195,8 @@ observed to close the socket without a response. The buffered observation proves
 the handler's withholding decision, not that production can always deliver a 503
 while its worker remains interrupted. Other caller interruption is not cleared.
 
-Successful local receipts establish the new S1 host component and paired carrier
-behavior. Hosted OP/account/browser observations, real TLS/external edge,
-distributed/recovery integration and the formal Burp/SAML Raider/ZAP S1 pass remain
-open. S2 full JWT/opaque resource/client acquisition, S3 full SP/browser/mutable
-SAML and S4 restrictive SCIM query/write hosts retain separate work and evidence.
+Successful local receipts cover this host component and its paired carrier
+behavior. They do not qualify hosted OP/account/browser behavior, real TLS or an
+external edge, distributed/recovery integration, or a formal Burp/SAML Raider/ZAP
+security-tool pass. The resource-server, SAML and SCIM application recipes have
+their own separate checks.
