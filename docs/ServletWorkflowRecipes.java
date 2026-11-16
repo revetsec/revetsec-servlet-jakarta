@@ -143,7 +143,7 @@ public final class ServletWorkflowRecipes {
         return ServletWebAuthn.bodyResultFor(settings, request);
     }
 
-    /** Call only after the host accepts exact Host, Origin, CSRF, session and ceremony routing,
+    /** Call only after the host accepts exact Host, browser request origin, CSRF, session and ceremony routing,
      * then supplies the server-owned operation binding for that session. */
     public static WebAuthnRegistrationResult completeRegistration(WebAuthnRelyingParty relyingParty,
             String ceremonyId, ServletWebAuthnBodyResult.Read body, OperationBinding operationBinding) {

@@ -11,6 +11,7 @@ These `jakarta.servlet` recipes pair with the `javax.servlet` recipes in the sib
 | SCIM | `SokletScim` | `ServletScim` | `ServletScim` | Paired SCIM container fixtures |
 | WebAuthn | Core API in the Soklet passkey demo | `ServletWebAuthn` | `ServletWebAuthn` | Soklet browser demo; paired source; M12 container fixture |
 | TOTP and recovery codes | Core API in the Soklet 4 TOTP application | Application-owned core calls | Application-owned core calls | [Paired Servlet TOTP cookbook](totp.md); pinned Tomcat fixture |
+| Browser request origin | `SokletBrowserRequestOrigins` | `ServletBrowserRequestOrigins` | `ServletBrowserRequestOrigins` | Core [`BrowserRequestOriginPolicy` guide](https://github.com/revetsec/revetsec/blob/main/docs/browser-request-origin-policy.md); paired OIDC RP, passkey and TOTP recipes |
 
 The table maps integration paths and sources. A real-container result is established only by a successful source-bound runner receipt; the table itself is not a test result.
 
@@ -97,7 +98,7 @@ Read raw bodies before Servlet parameter decoding. The application owns route/is
 
 ## WebAuthn enrollment, sign-in and management
 
-Bind the configured `WebAuthnRelyingParty` to the trusted HTTPS origin and RP ID. Before each POST, the application checks exact Host and Origin, its session cookie, an independent CSRF value, method and content bounds. It selects an approved account handle for enrollment and reauthentication; discoverable sign-in begins without an account assertion. Keep a fresh random browser binding in the protected session. All nodes sharing the account must use the same durable store, sealing-key policy and recovery admission gate.
+Bind the configured `WebAuthnRelyingParty` to the trusted HTTPS origin and RP ID. Before each POST, the application checks the exact Host, the browser request origin through `ServletBrowserRequestOrigins` and core's `BrowserRequestOriginPolicy`, its session cookie, an independent CSRF value, method and content bounds. It selects an approved account handle for enrollment and reauthentication; discoverable sign-in begins without an account assertion. Keep a fresh random browser binding in the protected session. All nodes sharing the account must use the same durable store, sealing-key policy and recovery admission gate.
 
 Call core's `beginRegistrationResult`, `beginAuthenticationResult` or `beginReauthenticationResult`. Only a `Prepared` result contains a `WebAuthnBrowserRequest`; send it with `ServletWebAuthn.writeBrowserRequest(response, prepared.getRequest())`. This writes `{ceremonyId, publicKey}` JSON with no-store and nosniff. The browser uses `PublicKeyCredential.parseCreationOptionsFromJSON` or `parseRequestOptionsFromJSON` and submits `PublicKeyCredential.toJSON()` unchanged. Treat the returned ceremony ID as untrusted routing input.
 
